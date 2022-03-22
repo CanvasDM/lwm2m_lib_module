@@ -54,8 +54,6 @@
 typedef int (*udp_request_handler_cb_t)(struct coap_packet *request,
 					struct lwm2m_message *msg);
 
-char *lwm2m_sprint_ip_addr(const struct sockaddr *addr);
-
 int lwm2m_notify_observer(uint16_t obj_id, uint16_t obj_inst_id, uint16_t res_id);
 int lwm2m_notify_observer_path(struct lwm2m_obj_path *path);
 
@@ -143,6 +141,10 @@ uint8_t lwm2m_firmware_get_update_result(void);
 struct lwm2m_attr *lwm2m_engine_get_next_attr(const void *ref,
 					      struct lwm2m_attr *prev);
 const char *lwm2m_engine_get_attr_name(const struct lwm2m_attr *attr);
+
+void lwm2m_coap_receive(struct lwm2m_ctx *client_ctx,
+			      uint8_t *buf, uint16_t buf_len,
+			      struct sockaddr *from_addr);
 
 /* Network Layer */
 int  lwm2m_socket_add(struct lwm2m_ctx *ctx);

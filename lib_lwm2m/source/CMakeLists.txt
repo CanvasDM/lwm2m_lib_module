@@ -12,7 +12,13 @@ zephyr_library_sources(
     lwm2m_rw_link_format.c
     lwm2m_rw_plain_text.c
     lwm2m_rw_oma_tlv.c
+    lwm2m_transport.c
     lwm2m_util.c
+    )
+
+# LWM2M UDP transport
+zephyr_library_sources_ifdef(CONFIG_LCZ_LWM2M_TRANSPORT_UDP
+    lwm2m_transport_udp.c
     )
 
 # LWM2M RD Client Support

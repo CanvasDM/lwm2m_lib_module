@@ -4,7 +4,6 @@
 menuconfig LCZ_LWM2M
 	bool "OMA LWM2M protocol stack"
 	select COAP
-	select HTTP_PARSER_URL
 	select NET_SOCKETS
 	select NET_SOCKETS_POSIX_NAMES
 	help
@@ -17,8 +16,21 @@ module-dep = LOG
 module-str = Log level for LWM2M library
 source "subsys/net/Kconfig.template.log_config.net"
 
+config LCZ_LWM2M_TRANSPORT_NUM
+	int "Number of LwM2M transports that can be registered"
+	default 1
+	help
+	  Set the number of transports that can be registered with the LwM2M engine
+
+config LCZ_LWM2M_TRANSPORT_UDP
+	bool "Enable CoAP over UDP transport for LwM2M"
+	select HTTP_PARSER_URL
+	help
+	  This option adds support for transporting LwM2M/CoAP over UDP
+
 config LCZ_LWM2M_DTLS_SUPPORT
 	bool "Enable DTLS support in the LwM2M client"
+	depends on LCZ_LWM2M_TRANSPORT_UDP
 	select TLS_CREDENTIALS
 	select NET_SOCKETS_SOCKOPT_TLS
 	select NET_SOCKETS_ENABLE_DTLS
@@ -328,6 +340,7 @@ config LCZ_LWM2M_FIRMWARE_UPDATE_OBJ_INSTANCE_COUNT
 config LCZ_LWM2M_FIRMWARE_UPDATE_PULL_SUPPORT
 	bool "Firmware Update object pull support"
 	default y
+	depends on LCZ_LWM2M_TRANSPORT_UDP
 	depends on LCZ_LWM2M_FIRMWARE_UPDATE_OBJ_SUPPORT
 	depends on (HTTP_PARSER || HTTP_PARSER_URL)
 	help

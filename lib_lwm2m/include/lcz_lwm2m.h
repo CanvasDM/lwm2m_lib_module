@@ -109,6 +109,10 @@ typedef void (*lwm2m_observe_cb_t)(enum lwm2m_observe_event event, struct lwm2m_
  * LwM2M connection.
  */
 struct lwm2m_ctx {
+	/** Transport name */
+	const char *transport_name;
+	int transport_idx;
+
 	/** Destination address storage */
 	struct sockaddr remote_addr;
 
@@ -273,6 +277,28 @@ typedef int (*lwm2m_engine_user_cb_t)(uint16_t obj_inst_id);
  */
 typedef int (*lwm2m_engine_execute_cb_t)(uint16_t obj_inst_id,
 					 uint8_t *args, uint16_t args_len);
+
+/**
+ * @brief LwM2M transport function table
+ */
+struct lwm2m_transport_procedure {
+	int (*start)(struct lwm2m_ctx *client_ctx);
+	int (*send)(struct lwm2m_ctx *client_ctx, const uint8_t *data, uint32_t len);
+	int (*recv)(struct lwm2m_ctx *client_ctx);
+	int (*close)(struct lwm2m_ctx *client_ctx);
+	int (*is_connected)(struct lwm2m_ctx *client_ctx);
+	void (*tx_pending)(struct lwm2m_ctx *client_ctx, bool pending);
+	char *(*print_addr)(struct lwm2m_ctx *client_ctx, const struct sockaddr *addr);
+};
+
+/** @brief Register a new transport for the LwM2M engine
+ *
+ * @param[in] name Name of the new transport
+ * @param[in] funcs Table of function pointers for the new transport
+ *
+ * @returns 0 on success or negative error code
+ */
+int lwm2m_transport_register(const char *name, struct lwm2m_transport_procedure *funcs);
 
 /**
  * @brief Power source types used for the "Available Power Sources" resource of

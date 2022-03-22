@@ -58,6 +58,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include "lwm2m_object.h"
 #include "lwm2m_engine.h"
+#include "lwm2m_transport.h"
 #include "lwm2m_rw_link_format.h"
 
 #define LWM2M_RD_CLIENT_URI "rd"
@@ -828,7 +829,7 @@ static int sm_send_registration(bool send_obj_support_data,
 
 	/* log the registration attempt */
 	LOG_DBG("registration sent [%s]",
-		log_strdup(lwm2m_sprint_ip_addr(&client.ctx->remote_addr)));
+		log_strdup(lwm2m_transport_print_addr(client.ctx, &client.ctx->remote_addr)));
 
 	return 0;
 

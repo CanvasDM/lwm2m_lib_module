@@ -19,6 +19,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <net/socket.h>
 
 #include "lwm2m_pull_context.h"
+#include "lwm2m_transport.h"
 #include "lwm2m_engine.h"
 
 static K_SEM_DEFINE(lwm2m_pull_sem, 1, 1);
@@ -370,10 +371,24 @@ static void firmware_transfer(void)
 		goto error;
 	}
 
+	/* Initialize the transport */
+	context.firmware_ctx.transport_name = "udp";
+	ret = lwm2m_transport_lookup(&context.firmware_ctx);
+	if (ret < 0) {
+		LOG_ERR("Could not initialize UDP LwM2M transport: %d", ret);
+		goto error;
+	}
+
 	lwm2m_engine_context_init(&context.firmware_ctx);
 	ret = lwm2m_socket_start(&context.firmware_ctx);
 	if (ret < 0) {
 		LOG_ERR("Cannot start a firmware-pull connection:%d", ret);
+		goto error;
+	}
+
+	ret = lwm2m_socket_add(&context.firmware_ctx);
+	if (ret < 0) {
+		LOG_ERR("Cannot add LwM2M socket: %d", ret);
 		goto error;
 	}
 
