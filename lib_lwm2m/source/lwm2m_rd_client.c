@@ -239,13 +239,13 @@ static void sm_handle_failure_state(enum sm_engine_state sm_state)
 }
 
 /* force state machine restart */
-static void socket_fault_cb(int error)
+static void socket_fault_cb(struct lwm2m_ctx *ctx, int error)
 {
 	LOG_ERR("RD Client socket error: %d", error);
 
-	lwm2m_engine_context_close(client.ctx);
+	lwm2m_engine_context_close(ctx);
 
-	client.ctx->sec_obj_inst = -1;
+	ctx->sec_obj_inst = -1;
 
 	/* Jump directly to the registration phase. In case there is no valid
 	 * security object for the LWM2M server, it will fall back to the
@@ -1089,6 +1089,7 @@ void lwm2m_rd_client_start(struct lwm2m_ctx *client_ctx, const char *ep_name,
 	client.ctx = client_ctx;
 	client.ctx->sock_fd = -1;
 	client.ctx->fault_cb = socket_fault_cb;
+	client.ctx->coap_msg_cb = NULL;
 	client.ctx->observe_cb = observe_cb;
 	client.event_cb = event_cb;
 	client.use_bootstrap = flags & LWM2M_RD_CLIENT_FLAG_BOOTSTRAP;

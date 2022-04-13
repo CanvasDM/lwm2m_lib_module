@@ -120,7 +120,7 @@ static int lwm2m_transport_udp_recv(struct lwm2m_ctx *client_ctx)
 
 		LOG_ERR("Error reading response: %d", errno);
 		if (client_ctx->fault_cb != NULL) {
-			client_ctx->fault_cb(errno);
+			client_ctx->fault_cb(client_ctx, errno);
 		}
 		return -errno;
 	}

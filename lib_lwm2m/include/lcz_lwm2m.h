@@ -71,7 +71,10 @@
 #define IPSO_OBJECT_FILLING_LEVEL_SENSOR_ID 3435
 /* clang-format on */
 
-typedef void (*lwm2m_socket_fault_cb_t)(int error);
+/* Forward definition */
+struct lwm2m_ctx;
+
+typedef void (*lwm2m_socket_fault_cb_t)(struct lwm2m_ctx *ctx, int error);
 
 struct lwm2m_obj_path {
 	uint16_t obj_id;
@@ -103,6 +106,27 @@ enum lwm2m_observe_event {
  */
 typedef void (*lwm2m_observe_cb_t)(enum lwm2m_observe_event event, struct lwm2m_obj_path *path,
 				   void *user_data);
+
+/**
+ * @brief Results of application CoAP message handler
+ */
+enum lwm2m_coap_resp {
+	LWM2M_COAP_RESP_NONE, /* Send no reply */
+	LWM2M_COAP_RESP_ACK, /* Send message in ACK pointer */
+	LWM2M_COAP_RESP_NOT_HANDLED, /* Engine should process message */
+};
+
+/**
+ * @brief Application-specific handler for incoming CoAP request messages
+ *
+ * @param[in] client_ctx LwM2M context
+ * @param[in] request Incoming CoAP request packet
+ * @param[out] ack Pointer to memory for reply packet
+ *
+ * @returns an indication of how the engine should proceed
+ */
+typedef enum lwm2m_coap_resp (*lwm2m_coap_msg_cb_t)(struct lwm2m_ctx *client_ctx,
+	struct coap_packet *request, struct coap_packet *ack);
 
 /**
  * @brief LwM2M context structure to maintain information for a single
@@ -177,6 +201,9 @@ struct lwm2m_ctx {
 	 *  out notifications.
 	 */
 	lwm2m_observe_cb_t observe_cb;
+
+	/** Callback for new CoAP messages */
+	lwm2m_coap_msg_cb_t coap_msg_cb;
 
 	/** Validation buffer. Used as a temporary buffer to decode the resource
 	 *  value before validation. On successful validation, its content is
@@ -1102,6 +1129,25 @@ int lwm2m_update_device_service_period(uint32_t period_ms);
 int lwm2m_engine_start(struct lwm2m_ctx *client_ctx);
 
 /**
+ * @brief Close a LwM2M context, effectively stopping the LwM2M engine
+ *
+ * @param[in] client_ctx LwM2M context to close
+ *
+ * @return 0 for success or negative in case of error.
+ */
+int lwm2m_engine_context_close(struct lwm2m_ctx *client_ctx);
+
+/**
+ * @brief Send a raw CoAP packet using the LwM2M transport
+ *
+ * @param[in] client_ctx LwM2M context to use
+ * @param[in] pkt Packet to send
+ *
+ * @return 0 for success or negative in case of error.
+ */
+int lwm2m_engine_send_coap(struct lwm2m_ctx *client_ctx, struct coap_packet *pkt);
+
+/**
  * @brief Acknowledge the currently processed request with an empty ACK.
  *
  * LwM2M engine by default sends piggybacked responses for requests.
@@ -1210,6 +1256,18 @@ void lwm2m_rd_client_update(void);
  * @return Resulting formatted path string
  */
 char *lwm2m_path_log_strdup(char *buf, struct lwm2m_obj_path *path);
+
+/**
+ * @brief Handle CoAP message received by a transport
+ *
+ * @param[in] client_ctx Context on which the message was received
+ * @param[in] buf The buffer holding the received message
+ * @param[in] buf_len Length of the message in the buffer
+ * @param[in] from_addr Source address of the message
+ */
+void lwm2m_coap_receive(struct lwm2m_ctx *client_ctx,
+			      uint8_t *buf, uint16_t buf_len,
+			      struct sockaddr *from_addr);
 
 #endif	/* ZEPHYR_INCLUDE_NET_LWM2M_H_ */
 /**@}  */

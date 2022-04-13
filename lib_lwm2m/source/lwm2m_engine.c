@@ -987,6 +987,11 @@ static int lwm2m_send_message(struct lwm2m_message *msg)
 		return -EINVAL;
 	}
 
+	/* Update t0 to reflect when we sent the message, not when it was built */
+	if (msg->pending != NULL) {
+		msg->pending->t0 = k_uptime_get_32();
+	}
+
 	if (msg->type == COAP_TYPE_CON) {
 		coap_pending_cycle(msg->pending);
 	}
@@ -3976,6 +3981,7 @@ void lwm2m_coap_receive(struct lwm2m_ctx *client_ctx,
 	int r;
 	uint8_t token[8];
 	uint8_t tkl;
+	enum lwm2m_coap_resp resp;
 
 	r = coap_packet_parse(&response, buf, buf_len, NULL, 0);
 	if (r < 0) {
@@ -4009,6 +4015,16 @@ void lwm2m_coap_receive(struct lwm2m_ctx *client_ctx,
 			(coap_header_get_code(&response) == COAP_CODE_EMPTY)) {
 			LOG_DBG("Empty ACK, expect separate response.");
 			return;
+		}
+	} else if (coap_header_get_type(&response) == COAP_TYPE_ACK) {
+		/* Try the application message hook */
+		resp = LWM2M_COAP_RESP_NOT_HANDLED;
+		if (client_ctx->coap_msg_cb != NULL) {
+			resp = client_ctx->coap_msg_cb(client_ctx, &response, NULL);
+		}
+
+		if (resp == LWM2M_COAP_RESP_NOT_HANDLED) {
+			LOG_DBG("No handler for ACK");
 		}
 	}
 
@@ -4061,6 +4077,38 @@ void lwm2m_coap_receive(struct lwm2m_ctx *client_ctx,
 		msg->type = COAP_TYPE_ACK;
 		msg->code = coap_header_get_code(&response);
 		msg->mid = coap_header_get_id(&response);
+
+		/* Try the application message hook first */
+		if (client_ctx->coap_msg_cb != NULL) {
+			uint8_t tkl;
+
+			/* Prepare the CoAP message */
+			tkl = coap_header_get_token(&response, token);
+			if (tkl) {
+				msg->tkl = tkl;
+				msg->token = token;
+			}
+			lwm2m_init_message(msg);
+
+			/* Call the application callback */
+			resp = client_ctx->coap_msg_cb(client_ctx, &response, &(msg->cpkt));
+
+			/* If we're sending no response, just release the message and return */
+			if (resp == LWM2M_COAP_RESP_NONE) {
+				lwm2m_reset_message(msg, true);
+				return;
+			}
+
+			/* Else, msg->cpkt contains an initialized CoAP message */
+			else if (resp == LWM2M_COAP_RESP_ACK) {
+				/* Send the message */
+				lwm2m_send_message_async(msg);
+				return;
+			}
+
+			/* Else, let the engine handle the message */
+		}
+
 		/* skip token generation by default */
 		msg->tkl = 0;
 
@@ -4085,7 +4133,15 @@ void lwm2m_coap_receive(struct lwm2m_ctx *client_ctx,
 		client_ctx->processed_req = NULL;
 		lwm2m_send_message_async(msg);
 	} else {
-		LOG_DBG("No handler for response");
+		/* Try the application message hook */
+		resp = LWM2M_COAP_RESP_NOT_HANDLED;
+		if (client_ctx->coap_msg_cb != NULL) {
+			resp = client_ctx->coap_msg_cb(client_ctx, &response, NULL);
+		}
+
+		if (resp == LWM2M_COAP_RESP_NOT_HANDLED) {
+			LOG_DBG("No handler for response");
+		}
 	}
 }
 
@@ -4403,6 +4459,12 @@ int lwm2m_engine_context_close(struct lwm2m_ctx *client_ctx)
 	return lwm2m_transport_close(client_ctx);
 }
 
+int lwm2m_engine_send_coap(struct lwm2m_ctx *client_ctx, struct coap_packet *pkt)
+{
+	/* Send the message straight to the transport */
+	return lwm2m_transport_send(client_ctx, pkt->data, pkt->offset);
+}
+
 void lwm2m_engine_context_init(struct lwm2m_ctx *client_ctx)
 {
 	sys_slist_init(&client_ctx->pending_sends);
@@ -4573,7 +4635,7 @@ static void socket_loop(void)
 					sock_fds[i].revents);
 				if (sock_ctx[i] != NULL &&
 				    sock_ctx[i]->fault_cb != NULL) {
-					sock_ctx[i]->fault_cb(EIO);
+					sock_ctx[i]->fault_cb(sock_ctx[i], EIO);
 				}
 				continue;
 			}
