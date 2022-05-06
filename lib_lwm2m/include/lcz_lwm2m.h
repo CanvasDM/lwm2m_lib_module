@@ -1138,6 +1138,17 @@ int lwm2m_engine_start(struct lwm2m_ctx *client_ctx);
 int lwm2m_engine_context_close(struct lwm2m_ctx *client_ctx);
 
 /**
+ * @brief Retrieve the primary LwM2M context
+ *
+ * When LwM2M/CoAP communications are needed for non-networked devices,
+ * this happens over a "primary" LwM2M/CoAP transport. When this context
+ * is needed, this function can be used to retrieve that context.
+ *
+ * @returns the primary LwM2M context or NULL if it does not exist
+ */
+struct lwm2m_ctx *lwm2m_engine_get_primary_context(void);
+
+/**
  * @brief Send a raw CoAP packet using the LwM2M transport
  *
  * @param[in] client_ctx LwM2M context to use

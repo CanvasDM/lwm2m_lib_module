@@ -43,6 +43,7 @@ static struct firmware_pull_context {
 	lwm2m_engine_set_data_cb_t write_cb;
 
 	struct lwm2m_ctx firmware_ctx;
+	struct lwm2m_ctx *firmware_ctx_ptr;
 	struct coap_block_context block_ctx;
 } context;
 
@@ -51,11 +52,14 @@ static int n_retry;
 static void do_transmit_timeout_cb(struct lwm2m_message *msg);
 
 /**
- * Close all open connections and release the context semaphore
+ * Release the context semaphore and close any connections that were opened
+ * for the pull transfer. If a connection was reused, it will not be closed.
  */
 static void cleanup_context(void)
 {
-	lwm2m_engine_context_close(&context.firmware_ctx);
+	if (context.firmware_ctx_ptr == &(context.firmware_ctx)) {
+		lwm2m_engine_context_close(context.firmware_ctx_ptr);
+	}
 
 	k_sem_give(&lwm2m_pull_sem);
 }
@@ -72,7 +76,7 @@ static int transfer_request(struct coap_block_context *ctx, uint8_t *token, uint
 	char *next_slash;
 #endif
 
-	msg = lwm2m_get_message(&context.firmware_ctx);
+	msg = lwm2m_get_message(context.firmware_ctx_ptr);
 	if (!msg) {
 		LOG_ERR("Unable to get a lwm2m message!");
 		return -ENOMEM;
@@ -208,7 +212,7 @@ static int do_firmware_transfer_reply_cb(const struct coap_packet *response,
 		return 0;
 	} else if (coap_header_get_type(response) == COAP_TYPE_CON) {
 		/* Send back ACK so the server knows we received the pkt */
-		ret = lwm2m_send_empty_ack(&context.firmware_ctx,
+		ret = lwm2m_send_empty_ack(context.firmware_ctx_ptr,
 					   coap_header_get_id(check_response));
 		if (ret < 0) {
 			LOG_ERR("Error transmitting ACK");
@@ -365,7 +369,8 @@ static void firmware_transfer(void)
 	server_addr = context.uri;
 #endif
 
-	ret = lwm2m_parse_peerinfo(server_addr, &context.firmware_ctx, &context.is_firmware_uri);
+#ifdef CONFIG_LCZ_LWM2M_TRANSPORT_UDP
+	ret = lwm2m_parse_peerinfo(server_addr, context.firmware_ctx_ptr, &context.is_firmware_uri);
 	if (ret < 0) {
 		LOG_ERR("Failed to parse server URI.");
 		goto error;
@@ -373,24 +378,33 @@ static void firmware_transfer(void)
 
 	/* Initialize the transport */
 	context.firmware_ctx.transport_name = "udp";
-	ret = lwm2m_transport_lookup(&context.firmware_ctx);
+	ret = lwm2m_transport_lookup(context.firmware_ctx_ptr);
 	if (ret < 0) {
 		LOG_ERR("Could not initialize UDP LwM2M transport: %d", ret);
 		goto error;
 	}
 
-	lwm2m_engine_context_init(&context.firmware_ctx);
-	ret = lwm2m_socket_start(&context.firmware_ctx);
+	lwm2m_engine_context_init(context.firmware_ctx_ptr);
+	ret = lwm2m_socket_start(context.firmware_ctx_ptr);
 	if (ret < 0) {
 		LOG_ERR("Cannot start a firmware-pull connection:%d", ret);
 		goto error;
 	}
 
-	ret = lwm2m_socket_add(&context.firmware_ctx);
+	ret = lwm2m_socket_add(context.firmware_ctx_ptr);
 	if (ret < 0) {
 		LOG_ERR("Cannot add LwM2M socket: %d", ret);
 		goto error;
 	}
+#else
+	/* Re-use an existing context if we're not using UDP */
+	context.firmware_ctx_ptr = lwm2m_engine_get_primary_context();
+	if (context.firmware_ctx_ptr == NULL) {
+		LOG_ERR("No context available");
+		ret = -ENODEV;
+		goto error;
+	}
+#endif
 
 	LOG_INF("Connecting to server %s", log_strdup(context.uri));
 
@@ -435,6 +449,7 @@ int lwm2m_pull_context_start_transfer(char *uri, struct requesting_object req, k
 	(void)memset(&context.firmware_ctx, 0, sizeof(struct lwm2m_ctx));
 	(void)memset(&context.block_ctx, 0, sizeof(struct coap_block_context));
 	context.firmware_ctx.sock_fd = -1;
+	context.firmware_ctx_ptr = &(context.firmware_ctx);
 
 	n_retry = 0;
 	firmware_transfer();

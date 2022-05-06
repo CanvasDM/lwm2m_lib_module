@@ -33,6 +33,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <net/socket.h>
 #if defined(CONFIG_LCZ_LWM2M_DTLS_SUPPORT)
 #include <net/tls_credentials.h>
+#include <mbedtls/ssl.h>
 #endif
 #if defined(CONFIG_DNS_RESOLVER)
 #include <net/dns_resolve.h>
@@ -177,16 +178,19 @@ int lwm2m_socket_start(struct lwm2m_ctx *client_ctx)
 	if (client_ctx->load_credentials) {
 		ret = client_ctx->load_credentials(client_ctx);
 		if (ret < 0) {
+			LOG_ERR("load_credentials failed: %d", ret);
 			return ret;
 		}
 	} else {
 		ret = load_tls_credential(client_ctx, 3, TLS_CREDENTIAL_PSK_ID);
 		if (ret < 0) {
+			LOG_ERR("load_tls_credential(PSK_ID) failed %d", ret);
 			return ret;
 		}
 
 		ret = load_tls_credential(client_ctx, 5, TLS_CREDENTIAL_PSK);
 		if (ret < 0) {
+			LOG_ERR("load_tls_credential(PSK) failed %d", ret);
 			return ret;
 		}
 	}

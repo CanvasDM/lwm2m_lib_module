@@ -4025,6 +4025,8 @@ void lwm2m_coap_receive(struct lwm2m_ctx *client_ctx,
 
 		if (resp == LWM2M_COAP_RESP_NOT_HANDLED) {
 			LOG_DBG("No handler for ACK");
+		} else if (resp == LWM2M_COAP_RESP_NONE) {
+			return;
 		}
 	}
 
@@ -4427,6 +4429,11 @@ static int32_t lwm2m_engine_service(const int64_t timestamp)
 	/* calculate how long to sleep till the next service */
 	return engine_next_service_timeout_ms(ENGINE_UPDATE_INTERVAL_MS,
 					      timestamp);
+}
+
+struct lwm2m_ctx *lwm2m_engine_get_primary_context(void)
+{
+	return sock_ctx[0];
 }
 
 int lwm2m_engine_context_close(struct lwm2m_ctx *client_ctx)

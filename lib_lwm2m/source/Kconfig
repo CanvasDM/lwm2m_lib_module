@@ -24,7 +24,7 @@ config LCZ_LWM2M_TRANSPORT_NUM
 
 config LCZ_LWM2M_TRANSPORT_UDP
 	bool "Enable CoAP over UDP transport for LwM2M"
-	select HTTP_PARSER_URL
+	depends on (HTTP_PARSER || HTTP_PARSER_URL)
 	help
 	  This option adds support for transporting LwM2M/CoAP over UDP
 
@@ -340,7 +340,6 @@ config LCZ_LWM2M_FIRMWARE_UPDATE_OBJ_INSTANCE_COUNT
 config LCZ_LWM2M_FIRMWARE_UPDATE_PULL_SUPPORT
 	bool "Firmware Update object pull support"
 	default y
-	depends on LCZ_LWM2M_TRANSPORT_UDP
 	depends on LCZ_LWM2M_FIRMWARE_UPDATE_OBJ_SUPPORT
 	depends on (HTTP_PARSER || HTTP_PARSER_URL)
 	help
