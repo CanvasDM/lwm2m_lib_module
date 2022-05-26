@@ -76,6 +76,9 @@ struct lwm2m_ctx;
 
 typedef void (*lwm2m_socket_fault_cb_t)(struct lwm2m_ctx *ctx, int error);
 
+/* signature for a LwM2M service work handler function, identified by a tag */
+typedef void (*service_handler_t)(int tag);
+
 struct lwm2m_obj_path {
 	uint16_t obj_id;
 	uint16_t obj_inst_id;
@@ -1101,7 +1104,7 @@ int lwm2m_engine_delete_res_inst(char *pathstr);
  *
  * @return 0 for success or negative in case of error.
  */
-int lwm2m_engine_update_service_period(k_work_handler_t service, uint32_t period_ms);
+int lwm2m_engine_update_service_period(service_handler_t service, uint32_t period_ms);
 
 /**
  * @brief Update the period of the device service.
@@ -1220,6 +1223,9 @@ typedef void (*lwm2m_ctx_event_cb_t)(struct lwm2m_ctx *ctx,
  *
  * NOTE: lwm2m_engine_start() is called automatically by this function.
  *
+ * @param[in] rd client instance index to use
+ * @param[in] security object instance to reset to on ENGINE_INIT
+ * @param[in] server object instance to reset to on ENGINE_INIT
  * @param[in] client_ctx LwM2M context
  * @param[in] ep_name Registered endpoint name
  * @param[in] flags Flags used to configure current LwM2M session.
@@ -1228,7 +1234,9 @@ typedef void (*lwm2m_ctx_event_cb_t)(struct lwm2m_ctx *ctx,
  *			 added or deleted, and when a notification was acked or
  *			 has timed out
  */
-void lwm2m_rd_client_start(struct lwm2m_ctx *client_ctx, const char *ep_name,
+void lwm2m_rd_client_start(uint8_t rd_client_index, int init_sec_obj_inst,
+			   int init_srv_obj_inst,
+			   struct lwm2m_ctx *client_ctx, const char *ep_name,
 			   uint32_t flags, lwm2m_ctx_event_cb_t event_cb,
 			   lwm2m_observe_cb_t observe_cb);
 

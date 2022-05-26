@@ -206,7 +206,7 @@ int lwm2m_device_add_err(uint8_t error_code)
 	return 0;
 }
 
-static void device_periodic_service(struct k_work *work)
+static void device_periodic_service(int tag)
 {
 	NOTIFY_OBSERVER(LWM2M_OBJECT_DEVICE_ID, 0, DEVICE_CURRENT_TIME_ID);
 }
@@ -296,7 +296,7 @@ static int lwm2m_device_init(const struct device *dev)
 
 	/* call device_periodic_service() every 10 seconds */
 	ret = lwm2m_engine_add_service(device_periodic_service,
-				       DEVICE_SERVICE_INTERVAL_MS);
+				       DEVICE_SERVICE_INTERVAL_MS, 0);
 	return ret;
 }
 
