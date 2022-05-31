@@ -88,13 +88,14 @@ struct notification_attrs {
 
 static struct observe_node observe_node_data[CONFIG_LCZ_LWM2M_ENGINE_MAX_OBSERVER];
 
-#define MAX_PERIODIC_SERVICE	10
+#define MAX_PERIODIC_SERVICE	20
 
 struct service_node {
 	sys_snode_t node;
-	k_work_handler_t service_work;
+	service_handler_t service_work;
 	uint32_t min_call_period; /* ms */
 	uint64_t last_timestamp; /* ms */
+	uint32_t tag;
 };
 
 static struct service_node service_node_data[MAX_PERIODIC_SERVICE];
@@ -1013,7 +1014,7 @@ static int lwm2m_send_message(struct lwm2m_message *msg)
 
 	if (IS_ENABLED(CONFIG_LCZ_LWM2M_RD_CLIENT_SUPPORT) &&
 	    IS_ENABLED(CONFIG_LCZ_LWM2M_QUEUE_MODE_ENABLED)) {
-		engine_update_tx_time();
+		engine_update_tx_time(msg->ctx);
 	}
 
 	return 0;
@@ -1367,8 +1368,6 @@ int lwm2m_engine_create_obj_inst(char *pathstr)
 	struct lwm2m_engine_obj_inst *obj_inst;
 	int ret = 0;
 
-	LOG_DBG("path:%s", log_strdup(pathstr));
-
 	/* translate path -> path_obj */
 	ret = string_to_path(pathstr, &path, '/');
 	if (ret < 0) {
@@ -1385,6 +1384,7 @@ int lwm2m_engine_create_obj_inst(char *pathstr)
 		return ret;
 	}
 
+	LOG_DBG("(%s) obj inst created ", log_strdup(pathstr));
 #if defined(CONFIG_LCZ_LWM2M_RD_CLIENT_SUPPORT)
 	engine_trigger_update(true);
 #endif
@@ -1448,7 +1448,7 @@ int lwm2m_engine_set_res_data(char *pathstr, void *data_ptr, uint16_t data_len,
 	}
 
 	if (!res_inst) {
-		LOG_ERR("res instance %d not found", path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", pathstr, path.res_inst_id);
 		return -ENOENT;
 	}
 
@@ -1493,7 +1493,7 @@ static int lwm2m_engine_set(char *pathstr, void *value, uint16_t len)
 	}
 
 	if (!res_inst) {
-		LOG_ERR("res instance %d not found", path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", log_strdup(pathstr), path.res_inst_id);
 		return -ENOENT;
 	}
 
@@ -1713,7 +1713,7 @@ int lwm2m_engine_get_res_data(char *pathstr, void **data_ptr, uint16_t *data_len
 	}
 
 	if (!res_inst) {
-		LOG_ERR("res instance %d not found", path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", pathstr, path.res_inst_id);
 		return -ENOENT;
 	}
 
@@ -1755,7 +1755,7 @@ static int lwm2m_engine_get(char *pathstr, void *buf, uint16_t buflen)
 	}
 
 	if (!res_inst) {
-		LOG_ERR("res instance %d not found", path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", log_strdup(pathstr), path.res_inst_id);
 		return -ENOENT;
 	}
 
@@ -3606,7 +3606,7 @@ static int handle_request(struct coap_packet *request,
 	/* check for bootstrap-finish */
 	if ((code & COAP_REQUEST_MASK) == COAP_METHOD_POST && r == 1 &&
 	    strncmp(options[0].value, "bs", options[0].len) == 0) {
-		engine_bootstrap_finish();
+		engine_bootstrap_finish(msg->ctx);
 
 		msg->code = COAP_RESPONSE_CODE_CHANGED;
 
@@ -4372,7 +4372,7 @@ static int32_t engine_next_service_timeout_ms(uint32_t max_timeout,
 	return timeout;
 }
 
-int lwm2m_engine_add_service(k_work_handler_t service, uint32_t period_ms)
+int lwm2m_engine_add_service(service_handler_t service, uint32_t period_ms, uint32_t tag)
 {
 	int i;
 
@@ -4390,6 +4390,7 @@ int lwm2m_engine_add_service(k_work_handler_t service, uint32_t period_ms)
 	service_node_data[i].service_work = service;
 	service_node_data[i].min_call_period = period_ms;
 	service_node_data[i].last_timestamp = 0U;
+	service_node_data[i].tag = tag;
 
 	sys_slist_append(&engine_service_list,
 			 &service_node_data[i].node);
@@ -4397,7 +4398,7 @@ int lwm2m_engine_add_service(k_work_handler_t service, uint32_t period_ms)
 	return 0;
 }
 
-int lwm2m_engine_update_service_period(k_work_handler_t service, uint32_t period_ms)
+int lwm2m_engine_update_service_period(service_handler_t service, uint32_t period_ms)
 {
 	int i = 0;
 
@@ -4422,7 +4423,7 @@ static int32_t lwm2m_engine_service(const int64_t timestamp)
 		/* service is due */
 		if (timestamp >= service_due_timestamp) {
 			srv->last_timestamp = k_uptime_get();
-			srv->service_work(NULL);
+			srv->service_work(srv->tag);
 		}
 	}
 

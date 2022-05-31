@@ -106,7 +106,7 @@ int lwm2m_discover_handler(struct lwm2m_message *msg, bool is_bootstrap);
 
 enum coap_block_size lwm2m_default_block_size(void);
 
-int lwm2m_engine_add_service(k_work_handler_t service, uint32_t period_ms);
+int lwm2m_engine_add_service(service_handler_t service, uint32_t period_ms, uint32_t tag);
 
 int lwm2m_engine_get_resource(char *pathstr,
 			      struct lwm2m_engine_res **res);

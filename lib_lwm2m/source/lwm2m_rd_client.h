@@ -41,9 +41,9 @@
 void engine_trigger_update(bool update_objects);
 int engine_trigger_bootstrap(void);
 #if defined(CONFIG_LCZ_LWM2M_RD_CLIENT_SUPPORT_BOOTSTRAP)
-void engine_bootstrap_finish(void);
+void engine_bootstrap_finish(struct lwm2m_ctx *ctx);
 #endif
 
-void engine_update_tx_time(void);
+void engine_update_tx_time(struct lwm2m_ctx *ctx);
 
 #endif /* LWM2M_RD_CLIENT_H */

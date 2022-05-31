@@ -78,6 +78,7 @@ int lwm2m_transport_lookup(struct lwm2m_ctx *client_ctx)
 		for (i = 0; i < CONFIG_LCZ_LWM2M_TRANSPORT_NUM; i++) {
 			if (strcmp(transports[i].name, client_ctx->transport_name) == 0) {
 				client_ctx->transport_idx = i;
+				break;
 			}
 		}
 	}
