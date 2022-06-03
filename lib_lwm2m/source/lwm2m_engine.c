@@ -88,7 +88,7 @@ struct notification_attrs {
 
 static struct observe_node observe_node_data[CONFIG_LCZ_LWM2M_ENGINE_MAX_OBSERVER];
 
-#define MAX_PERIODIC_SERVICE	20
+#define MAX_PERIODIC_SERVICE	10
 
 struct service_node {
 	sys_snode_t node;
@@ -1448,7 +1448,7 @@ int lwm2m_engine_set_res_data(char *pathstr, void *data_ptr, uint16_t data_len,
 	}
 
 	if (!res_inst) {
-		LOG_ERR("(%s) res instance %d not found", pathstr, path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", log_strdup(pathstr), path.res_inst_id);
 		return -ENOENT;
 	}
 
@@ -1713,7 +1713,7 @@ int lwm2m_engine_get_res_data(char *pathstr, void **data_ptr, uint16_t *data_len
 	}
 
 	if (!res_inst) {
-		LOG_ERR("(%s) res instance %d not found", pathstr, path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", log_strdup(pathstr), path.res_inst_id);
 		return -ENOENT;
 	}
 

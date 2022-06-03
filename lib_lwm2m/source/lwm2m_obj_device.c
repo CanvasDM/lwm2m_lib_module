@@ -206,7 +206,7 @@ int lwm2m_device_add_err(uint8_t error_code)
 	return 0;
 }
 
-static void device_periodic_service(int tag)
+static void device_periodic_service(uint32_t tag)
 {
 	NOTIFY_OBSERVER(LWM2M_OBJECT_DEVICE_ID, 0, DEVICE_CURRENT_TIME_ID);
 }

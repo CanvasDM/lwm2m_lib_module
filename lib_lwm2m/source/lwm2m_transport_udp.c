@@ -396,7 +396,6 @@ static int lwm2m_transport_udp_start(struct lwm2m_ctx *client_ctx)
 	}
 
 	url[url_len] = '\0';
-	LOG_DBG("lwm2m transport start, sec obj %d, srv obj %d, URI %s", client_ctx->sec_obj_inst, client_ctx->srv_obj_inst, url);
 	ret = lwm2m_parse_peerinfo(url, client_ctx, false);
 	if (ret < 0) {
 		return ret;

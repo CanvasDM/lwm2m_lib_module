@@ -67,7 +67,6 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define STATE_MACHINE_UPDATE_INTERVAL_MS 500
 
 #define CLIENT_EP_LEN			CONFIG_LCZ_LWM2M_RD_CLIENT_ENDPOINT_NAME_MAX_LENGTH
-#define LWM2M_RD_CLIENT_COUNT 	CONFIG_LCZ_LWM2M_CLIENT_COUNT
 
 /* Up to 3 characters + NULL */
 #define CLIENT_BINDING_LEN sizeof("UQS")
@@ -121,8 +120,7 @@ struct lwm2m_rd_client_info {
 
 	bool trigger_update : 1;
 	bool update_objects : 1;
-	service_handler_t handler;
-} clients[LWM2M_RD_CLIENT_COUNT];
+} clients[CONFIG_LCZ_LWM2M_RD_CLIENT_NUM];
 
 /* Allocate some data for queries and updates. Make sure it's large enough to
  * hold the largest query string, which in most cases will be the endpoint
@@ -131,39 +129,47 @@ struct lwm2m_rd_client_info {
  */
 static char query_buffer[MAX(32, sizeof("ep=") + CLIENT_EP_LEN)];
 
-static struct lwm2m_rd_client_info *lwm2m_get_client_from_ctx(struct lwm2m_ctx *ctx) {
+static struct lwm2m_rd_client_info *lwm2m_get_client_from_ctx(struct lwm2m_ctx *ctx)
+{
 	int i;
-	for(i = 0; i < CONFIG_LCZ_LWM2M_CLIENT_COUNT; i++) {
-		if(clients[i].ctx == ctx) {
-			//LOG_WRN("found ctx %d", i);
+
+	for (i = 0; i < CONFIG_LCZ_LWM2M_RD_CLIENT_NUM; i++) {
+		if (clients[i].ctx == ctx) {
 			return &clients[i];
 		}
 	}
-	LOG_ERR("did not find ctx!");
+
+	LOG_ERR("lwm2m_get_client_from_ctx: Couldn't find index for %p", ctx);
 	return &clients[0];
 }
 
-static struct lwm2m_rd_client_info *lwm2m_get_client_from_rcv_sockaddr(const struct sockaddr *rcv) {
+static struct lwm2m_rd_client_info *lwm2m_get_client_from_rcv_sockaddr(const struct sockaddr *rcv)
+{
 	int i;
-	for(i = 0; i < LWM2M_RD_CLIENT_COUNT; i++) {
-		if(memcmp(&clients[i].ctx->remote_addr, rcv, sizeof(clients[i].ctx->remote_addr)) == 0) {
-			//LOG_WRN("found sockaddr %d", i);
+
+	for (i = 0; i < CONFIG_LCZ_LWM2M_RD_CLIENT_NUM; i++) {
+		if (memcmp(&clients[i].ctx->remote_addr, rcv,
+			   sizeof(clients[i].ctx->remote_addr)) == 0) {
 			return &clients[i];
 		}
 	}
-	LOG_ERR("did not find sockaddr!");
+
+	LOG_ERR("lwm2m_get_client_from_sockaddr: Couldn't find index for %p", rcv);
 	return &clients[0];
 }
 
-static struct lwm2m_rd_client_info *lwm2m_get_bootstrap_client(void) {
+static struct lwm2m_rd_client_info *lwm2m_get_bootstrap_client(void)
+{
 	int i;
-	// Get a reference to the first context that supports bootstrap
-	for(i = 0; i < LWM2M_RD_CLIENT_COUNT; i++) {
-		if(clients[i].use_bootstrap) {
+
+	/* Get a reference to the first context that supports bootstrap */
+	for (i = 0; i < CONFIG_LCZ_LWM2M_RD_CLIENT_NUM; i++) {
+		if (clients[i].use_bootstrap) {
 			return &clients[i];
 		}
 	}
-	LOG_ERR("did not find bootstrap client!");
+
+	LOG_ERR("lwm2m_get_bootstrap_client: Couldn't find a bootstrap client entry");
 	return &clients[0];
 }
 
@@ -232,7 +238,7 @@ static void sm_handle_timeout_state(struct lwm2m_message *msg,
 				    enum sm_engine_state sm_state)
 {
 	enum lwm2m_rd_client_event event = LWM2M_RD_CLIENT_EVENT_NONE;
-	struct lwm2m_rd_client_info *client	= lwm2m_get_client_from_ctx(msg->ctx);
+	struct lwm2m_rd_client_info *client = lwm2m_get_client_from_ctx(msg->ctx);
 
 #if defined(CONFIG_LCZ_LWM2M_RD_CLIENT_SUPPORT_BOOTSTRAP)
 	if (client->engine_state == ENGINE_BOOTSTRAP_REG_SENT) {
@@ -305,9 +311,9 @@ void engine_trigger_update(bool update_objects)
 	struct lwm2m_rd_client_info *client;
 	int i;
 
-	for(i = 0; i < LWM2M_RD_CLIENT_COUNT; i++) {
+	for(i = 0; i < CONFIG_LCZ_LWM2M_RD_CLIENT_NUM; i++) {
 		client = &clients[i];
-		
+
 		if (client->engine_state < ENGINE_REGISTRATION_SENT ||
 			client->engine_state > ENGINE_UPDATE_SENT) {
 			continue;
@@ -728,7 +734,6 @@ static int sm_do_bootstrap_reg(struct lwm2m_rd_client_info *client)
 	client->ctx->bootstrap_mode = true;
 	ret = sm_select_security_inst(client->ctx->bootstrap_mode,
 				      &client->ctx->sec_obj_inst);
-	
 	if (ret < 0) {
 		/* no bootstrap server found, let's move to registration */
 		LOG_WRN("Bootstrap server not found! Try normal registration.");
@@ -1070,13 +1075,16 @@ static void sm_do_network_error(struct lwm2m_rd_client_info *client)
 	set_sm_state(client->ctx, ENGINE_DO_REGISTRATION);
 }
 
-static void lwm2m_rd_client_service(int tag)
+static void lwm2m_rd_client_service(uint32_t tag)
 {
-	uint32_t client_index = tag - 100;
+	uint32_t client_index = tag;
+	struct lwm2m_rd_client_info *client = &clients[client_index];
 
-    struct lwm2m_rd_client_info *client = &clients[client_index];
-	//LOG_WRN("updating client %d", client_index);
-	
+	/* Ignore this if the tag isn't a valid client index */
+	if (client_index >= CONFIG_LCZ_LWM2M_RD_CLIENT_NUM) {
+		return;
+	}
+
 	k_mutex_lock(&client->mutex, K_FOREVER);
 
 	if (client->ctx) {
@@ -1149,12 +1157,12 @@ static void lwm2m_rd_client_service(int tag)
 }
 
 void lwm2m_rd_client_start(uint8_t rd_client_index, int init_sec_obj_inst,
-			   int init_srv_obj_inst, 
+			   int init_srv_obj_inst,
 			   struct lwm2m_ctx *client_ctx, const char *ep_name,
 			   uint32_t flags, lwm2m_ctx_event_cb_t event_cb,
 			   lwm2m_observe_cb_t observe_cb)
 {
-	if(rd_client_index >= LWM2M_RD_CLIENT_COUNT) return;
+	if(rd_client_index >= CONFIG_LCZ_LWM2M_RD_CLIENT_NUM) return;
 	struct lwm2m_rd_client_info *client = &clients[rd_client_index];
 	client->index = rd_client_index;
 	client->init_sec_obj_inst = init_sec_obj_inst;
@@ -1217,14 +1225,14 @@ void lwm2m_rd_client_update(void)
 static int lwm2m_rd_client_init(const struct device *dev)
 {
 	int i;
-	for(i = 0; i < LWM2M_RD_CLIENT_COUNT; i++) {
+
+	for (i = 0; i < CONFIG_LCZ_LWM2M_RD_CLIENT_NUM; i++) {
 		k_mutex_init(&clients[i].mutex);
-		clients[i].handler = lwm2m_rd_client_service;
-		if(lwm2m_engine_add_service(clients[i].handler,
-					STATE_MACHINE_UPDATE_INTERVAL_MS, 100 + i)) {
-						return -1;
+		if (lwm2m_engine_add_service(lwm2m_rd_client_service, STATE_MACHINE_UPDATE_INTERVAL_MS, i)) {
+			LOG_ERR("lwm2m_rd_client_init: Failed to add service for client %d", i);
 		}
 	}
+
 	return 0;
 }
 

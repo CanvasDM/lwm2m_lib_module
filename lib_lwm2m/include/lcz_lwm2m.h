@@ -76,8 +76,8 @@ struct lwm2m_ctx;
 
 typedef void (*lwm2m_socket_fault_cb_t)(struct lwm2m_ctx *ctx, int error);
 
-/* signature for a LwM2M service work handler function, identified by a tag */
-typedef void (*service_handler_t)(int tag);
+/* Signature for a LwM2M service work handler function, identified by a tag */
+typedef void (*service_handler_t)(uint32_t tag);
 
 struct lwm2m_obj_path {
 	uint16_t obj_id;
@@ -1090,6 +1090,20 @@ int lwm2m_engine_create_res_inst(char *pathstr);
  * @return 0 for success or negative in case of error.
  */
 int lwm2m_engine_delete_res_inst(char *pathstr);
+
+/**
+ * @brief Add a service
+ *
+ * Creates a service that will be called at a periodic interval
+ * specified by the period_ms parameter.
+ *
+ * @param[in] service Function pointer to be invoked periodically
+ * @param[in] period_ms Interval to call the service
+ * @param[in] tag User-provided value to be passed back to the service
+ *
+ * @return 0 for success or negative in case of error.
+ */
+int lwm2m_engine_add_service(service_handler_t service, uint32_t period_ms, uint32_t tag);
 
 /**
  * @brief Update the period of a given service.
