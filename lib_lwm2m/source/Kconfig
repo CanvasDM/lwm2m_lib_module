@@ -35,6 +35,14 @@ config LCZ_LWM2M_DTLS_SUPPORT
 	select NET_SOCKETS_SOCKOPT_TLS
 	select NET_SOCKETS_ENABLE_DTLS
 
+if LCZ_LWM2M_DTLS_SUPPORT
+
+config LCZ_LWM2M_DTLS_VERIFY
+	bool "Verify server credentials on DTLS connection"
+	default true
+
+endif
+
 choice
 	prompt "LwM2M Security object version"
 	default LCZ_LWM2M_SECURITY_OBJECT_VERSION_1_0
@@ -356,6 +364,11 @@ config LCZ_LWM2M_FIRMWARE_UPDATE_PULL_SUPPORT
 	  block transfer and "FIRMWARE PACKAGE URI" resource.  This option
 	  adds another UDP context and packet handling.
 
+config LCZ_LWM2M_FIRMWARE_UPDATE_PULL_TLS_TAG
+	int "TLS tag for firmware pull context"
+	default 0
+	range 0 65535
+
 config LCZ_LWM2M_SWMGMT_OBJ_SUPPORT
 	bool "Software management object support"
 	help
@@ -393,12 +406,6 @@ config LCZ_LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT
 	depends on LCZ_LWM2M_FIRMWARE_UPDATE_PULL_SUPPORT
 	help
 	  Include support for pulling firmware file via a CoAP-CoAP/HTTP proxy.
-
-config LCZ_LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_ADDR
-	string "CoAP proxy network address"
-	depends on LCZ_LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT
-	help
-	  Network address of the CoAP proxy server.
 
 config LCZ_LWM2M_RW_JSON_SUPPORT
 	bool "support for JSON writer"

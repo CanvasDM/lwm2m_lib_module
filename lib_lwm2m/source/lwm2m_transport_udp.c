@@ -12,6 +12,9 @@
  *         Joel Hoglund <joel@sics.se>
  */
 
+/**************************************************************************************************/
+/* Includes                                                                                       */
+/**************************************************************************************************/
 #define LOG_MODULE_NAME net_lwm2m_udp
 #define LOG_LEVEL CONFIG_LCZ_LWM2M_LOG_LEVEL
 
@@ -44,10 +47,14 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include "lwm2m_engine.h"
 #include "lwm2m_util.h"
 
-/******************************************************************************
-* Local function prototypes
-******************************************************************************/
+/**************************************************************************************************/
+/* Local Constant, Macro and Type Definitions                                                     */
+/**************************************************************************************************/
+#define MAX_CIPHERLIST 32
 
+/**************************************************************************************************/
+/* Local Function Prototypes                                                                      */
+/**************************************************************************************************/
 static int lwm2m_transport_udp_start(struct lwm2m_ctx *client_ctx);
 static int lwm2m_transport_udp_send(struct lwm2m_ctx *client_ctx, const uint8_t *data,
 				    uint32_t len);
@@ -57,34 +64,31 @@ static int lwm2m_transport_udp_is_connected(struct lwm2m_ctx *client_ctx);
 static void lwm2m_transport_udp_tx_pending(struct lwm2m_ctx *client_ctx, bool pending);
 static char *lwm2m_transport_udp_print_addr(struct lwm2m_ctx *client_ctx,
 					    const struct sockaddr *addr);
+#if defined(CONFIG_LCZ_LWM2M_DTLS_SUPPORT)
+static void filter_cipher_list(int fd);
+#endif /* CONFIG_LCZ_LWM2M_DTLS_SUPPORT */
 
-/******************************************************************************
-* Local variables
-******************************************************************************/
-
+/**************************************************************************************************/
+/* Local Data Definitions                                                                         */
+/**************************************************************************************************/
 static struct lwm2m_transport_procedure udp_transport = {
-	lwm2m_transport_udp_start,
-	lwm2m_transport_udp_send,
-	lwm2m_transport_udp_recv,
-	lwm2m_transport_udp_close,
-	lwm2m_transport_udp_is_connected,
-	lwm2m_transport_udp_tx_pending,
+	lwm2m_transport_udp_start,	  lwm2m_transport_udp_send,
+	lwm2m_transport_udp_recv,	  lwm2m_transport_udp_close,
+	lwm2m_transport_udp_is_connected, lwm2m_transport_udp_tx_pending,
 	lwm2m_transport_udp_print_addr
 };
 
-/******************************************************************************
-* Global functions
-******************************************************************************/
-
+/**************************************************************************************************/
+/* Global Function Definitions                                                                    */
+/**************************************************************************************************/
 int lwm2m_transport_udp_register(void)
 {
 	return lwm2m_transport_register("udp", &udp_transport);
 }
 
-/******************************************************************************
-* Local functions
-******************************************************************************/
-
+/**************************************************************************************************/
+/* Local Function Definitions                                                                     */
+/**************************************************************************************************/
 static int lwm2m_transport_udp_send(struct lwm2m_ctx *client_ctx, const uint8_t *data,
 				    uint32_t datalen)
 {
@@ -174,6 +178,12 @@ int lwm2m_socket_start(struct lwm2m_ctx *client_ctx)
 #if defined(CONFIG_LCZ_LWM2M_DTLS_SUPPORT)
 	int ret;
 	uint8_t tmp;
+	int peer_verify =
+#if defined(CONFIG_LCZ_LWM2M_DTLS_VERIFY)
+		TLS_PEER_VERIFY_REQUIRED;
+#else
+		TLS_PEER_VERIFY_OPTIONAL;
+#endif
 
 	if (client_ctx->load_credentials) {
 		ret = client_ctx->load_credentials(client_ctx);
@@ -224,6 +234,9 @@ int lwm2m_socket_start(struct lwm2m_ctx *client_ctx)
 			return -errno;
 		}
 
+		setsockopt(client_ctx->sock_fd, SOL_TLS, TLS_PEER_VERIFY, &peer_verify,
+			   sizeof(peer_verify));
+
 		if (client_ctx->desthostname != NULL) {
 			/** store character at len position */
 			tmp = client_ctx->desthostname[client_ctx->desthostnamelen];
@@ -241,6 +254,14 @@ int lwm2m_socket_start(struct lwm2m_ctx *client_ctx)
 				LOG_ERR("Failed to set TLS_HOSTNAME option: %d", errno);
 				return -errno;
 			}
+		}
+
+		/*
+		 * If we're using PSK credentials for DTLS, limit the list of ciphers to just those
+		 * that support PSK.
+		 */
+		if (client_ctx->load_credentials == NULL) {
+			filter_cipher_list(client_ctx->sock_fd);
 		}
 	}
 #endif /* CONFIG_LCZ_LWM2M_DTLS_SUPPORT */
@@ -435,3 +456,42 @@ static char *lwm2m_transport_udp_print_addr(struct lwm2m_ctx *client_ctx,
 	strcpy(buf, "unk");
 	return buf;
 }
+
+#if defined(CONFIG_LCZ_LWM2M_DTLS_SUPPORT)
+static void filter_cipher_list(int fd)
+{
+	int input_cipher_list[MAX_CIPHERLIST];
+	int output_cipher_list[CONFIG_NET_SOCKETS_TLS_MAX_CIPHERSUITES - 1];
+	uint32_t in_list_len = sizeof(input_cipher_list);
+	uint32_t out_list_len = 0;
+	const struct mbedtls_ssl_ciphersuite_t *cs;
+	int ret;
+	int i;
+
+	/* Fetch the current list of ciphers */
+	memset(input_cipher_list, 0, sizeof(input_cipher_list));
+	ret = getsockopt(fd, SOL_TLS, TLS_CIPHERSUITE_LIST, input_cipher_list, &in_list_len);
+	if (ret < 0) {
+		LOG_ERR("Could not fetch cipher list (%d). Not filtering.", errno);
+	} else {
+		if (in_list_len == sizeof(input_cipher_list)) {
+			LOG_WRN("Returned cipher list is max length, possibly truncated");
+		}
+
+		/* Copy PSK ciphers into the output list */
+		for (i = 0; i < (in_list_len / sizeof(int)); i++) {
+			cs = mbedtls_ssl_ciphersuite_from_id(input_cipher_list[i]);
+			if (mbedtls_ssl_ciphersuite_uses_psk(cs)) {
+				output_cipher_list[out_list_len++] = input_cipher_list[i];
+			}
+		}
+
+		/* Set the new cipher list */
+		ret = setsockopt(fd, SOL_TLS, TLS_CIPHERSUITE_LIST, output_cipher_list,
+				 (out_list_len * sizeof(int)));
+		if (ret < 0) {
+			LOG_ERR("Could not set filtered list: %d", errno);
+		}
+	}
+}
+#endif /* CONFIG_LCZ_LWM2M_DTLS_SUPPORT */

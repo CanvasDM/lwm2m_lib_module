@@ -618,7 +618,9 @@ static int package_uri_write_cb(uint16_t obj_inst_id, uint16_t res_id, uint16_t 
 					 .is_firmware_uri = false,
 					 .result_cb = set_update_result,
 					 .write_cb = instance->write_package_cb,
-					 .verify_cb = NULL };
+					 .verify_cb = NULL,
+					 .proxy_uri = lwm2m_firmware_get_proxy_uri(),
+					 .load_credentials = lwm2m_firmware_get_credential_cb() };
 
 	verify_package = req.verify_cb;
 

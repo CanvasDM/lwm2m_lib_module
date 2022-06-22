@@ -14,7 +14,9 @@
 struct requesting_object {
 	uint8_t obj_inst_id;
 	bool is_firmware_uri;
+	const uint8_t *proxy_uri;
 
+	load_credentials_cb_t load_credentials;
 	void (*result_cb)(uint16_t obj_inst_id, int error_code);
 	lwm2m_engine_set_data_cb_t write_cb;
 	int (*verify_cb)(void);

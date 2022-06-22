@@ -28,18 +28,6 @@ extern "C" {
  */
 int lwm2m_transport_init(void);
 
-/** @brief Ensure transport settings are correct
- *
- * This function is also called from within lwm2m_transport_start(). This
- * function is only needed when the transport is needed, but
- * lwm2m_transport_start() cannot be called.
- *
- * @param[in] client Identifies the client on which the procedure is requested.
- *
- * @returns 0 on success or negative error code on error
- */
-int lwm2m_transport_lookup(struct lwm2m_ctx *client_ctx);
-
 /** @brief Start the configured transport
  *
  * The function expects that client_ctx->name is set to the name of one of the

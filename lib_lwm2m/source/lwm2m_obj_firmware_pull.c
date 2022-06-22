@@ -16,6 +16,9 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include "lwm2m_pull_context.h"
 #include "lwm2m_engine.h"
 
+static char *proxy_uri = NULL;
+static load_credentials_cb_t load_credentials = NULL;
+
 static void set_update_result(uint16_t obj_inst_id, int error_code)
 {
 	int result;
@@ -70,6 +73,8 @@ int lwm2m_firmware_start_transfer(uint16_t obj_inst_id, char *package_uri)
 	int error_code;
 
 	req.write_cb = lwm2m_firmware_get_write_cb();
+	req.proxy_uri = (const char *)proxy_uri;
+	req.load_credentials = load_credentials;
 
 	/* start file transfer work */
 	error_code = lwm2m_pull_context_start_transfer(package_uri, req, K_NO_WAIT);
@@ -81,4 +86,24 @@ int lwm2m_firmware_start_transfer(uint16_t obj_inst_id, char *package_uri)
 	lwm2m_firmware_set_update_state_inst(obj_inst_id, STATE_DOWNLOADING);
 
 	return 0;
+}
+
+void lwm2m_firmware_set_proxy_uri(char *uri)
+{
+	proxy_uri = uri;
+}
+
+const char *lwm2m_firmware_get_proxy_uri(void)
+{
+	return (const char *)proxy_uri;
+}
+
+void lwm2m_firmware_set_credential_cb(load_credentials_cb_t credential_cb)
+{
+	load_credentials = credential_cb;
+}
+
+load_credentials_cb_t lwm2m_firmware_get_credential_cb(void)
+{
+	return load_credentials;
 }

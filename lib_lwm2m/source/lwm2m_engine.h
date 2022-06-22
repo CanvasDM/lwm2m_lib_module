@@ -77,10 +77,6 @@ struct lwm2m_engine_res *lwm2m_engine_get_res(
 
 bool lwm2m_engine_shall_report_obj_version(const struct lwm2m_engine_obj *obj);
 
-/* LwM2M context functions */
-int lwm2m_engine_context_close(struct lwm2m_ctx *client_ctx);
-void lwm2m_engine_context_init(struct lwm2m_ctx *client_ctx);
-
 /* Message buffer functions */
 uint8_t *lwm2m_get_message_buf(void);
 int lwm2m_put_message_buf(uint8_t *buf);
@@ -139,15 +135,5 @@ uint8_t lwm2m_firmware_get_update_result(void);
 struct lwm2m_attr *lwm2m_engine_get_next_attr(const void *ref,
 					      struct lwm2m_attr *prev);
 const char *lwm2m_engine_get_attr_name(const struct lwm2m_attr *attr);
-
-void lwm2m_coap_receive(struct lwm2m_ctx *client_ctx,
-			      uint8_t *buf, uint16_t buf_len,
-			      struct sockaddr *from_addr);
-
-/* Network Layer */
-int  lwm2m_socket_add(struct lwm2m_ctx *ctx);
-void lwm2m_socket_del(struct lwm2m_ctx *ctx);
-int  lwm2m_socket_start(struct lwm2m_ctx *client_ctx);
-int  lwm2m_parse_peerinfo(char *url, struct lwm2m_ctx *client_ctx, bool is_firmware_uri);
 
 #endif /* LWM2M_ENGINE_H */
