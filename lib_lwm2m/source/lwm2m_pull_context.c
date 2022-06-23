@@ -103,10 +103,10 @@ static int transfer_request(struct coap_block_context *ctx, uint8_t *token, uint
 
 #if defined(CONFIG_LCZ_LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT)
 	if (strlen(context.proxy_uri) > 0) {
-		if (strlen(context.uri) <= URL_PROTO_HTTPS_LEN &&
+		if (strlen(context.uri) >= URL_PROTO_HTTPS_LEN &&
 		    strncasecmp(context.uri, URL_PROTO_HTTP, URL_PROTO_HTTP_LEN) == 0) {
 			cursor = COAP2HTTP_PROXY_URI_PATH;
-		} else if (strlen(context.uri) <= URL_PROTO_COAPS_LEN &&
+		} else if (strlen(context.uri) >= URL_PROTO_COAPS_LEN &&
 			   strncasecmp(context.uri, URL_PROTO_COAP, URL_PROTO_COAP_LEN) == 0) {
 			cursor = COAP2COAP_PROXY_URI_PATH;
 		} else {
