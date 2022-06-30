@@ -48,11 +48,6 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include "lwm2m_util.h"
 
 /**************************************************************************************************/
-/* Local Constant, Macro and Type Definitions                                                     */
-/**************************************************************************************************/
-#define MAX_CIPHERLIST 32
-
-/**************************************************************************************************/
 /* Local Function Prototypes                                                                      */
 /**************************************************************************************************/
 static int lwm2m_transport_udp_start(struct lwm2m_ctx *client_ctx);
@@ -460,7 +455,7 @@ static char *lwm2m_transport_udp_print_addr(struct lwm2m_ctx *client_ctx,
 #if defined(CONFIG_LCZ_LWM2M_DTLS_SUPPORT)
 static void filter_cipher_list(int fd)
 {
-	int input_cipher_list[MAX_CIPHERLIST];
+	int input_cipher_list[CONFIG_LCZ_LWM2M_TLS_MAX_CIPHERSUITES];
 	int output_cipher_list[CONFIG_NET_SOCKETS_TLS_MAX_CIPHERSUITES - 1];
 	uint32_t in_list_len = sizeof(input_cipher_list);
 	uint32_t out_list_len = 0;
@@ -475,15 +470,21 @@ static void filter_cipher_list(int fd)
 		LOG_ERR("Could not fetch cipher list (%d). Not filtering.", errno);
 	} else {
 		if (in_list_len == sizeof(input_cipher_list)) {
-			LOG_WRN("Returned cipher list is max length, possibly truncated");
+			LOG_WRN("Input cipher list is max length, possibly truncated");
 		}
 
 		/* Copy PSK ciphers into the output list */
-		for (i = 0; i < (in_list_len / sizeof(int)); i++) {
+		for (i = 0; (i < (in_list_len / sizeof(int))) &&
+			    (out_list_len < (CONFIG_NET_SOCKETS_TLS_MAX_CIPHERSUITES - 1));
+		     i++) {
 			cs = mbedtls_ssl_ciphersuite_from_id(input_cipher_list[i]);
 			if (mbedtls_ssl_ciphersuite_uses_psk(cs)) {
 				output_cipher_list[out_list_len++] = input_cipher_list[i];
 			}
+		}
+
+		if (out_list_len >= (CONFIG_NET_SOCKETS_TLS_MAX_CIPHERSUITES -1)) {
+			LOG_WRN("Output cipher list is max length, possibly truncated");
 		}
 
 		/* Set the new cipher list */

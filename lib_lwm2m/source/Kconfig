@@ -37,6 +37,11 @@ config LCZ_LWM2M_DTLS_SUPPORT
 
 if LCZ_LWM2M_DTLS_SUPPORT
 
+config LCZ_LWM2M_TLS_MAX_CIPHERSUITES
+	int "Maximum number of TLS ciphersuites"
+	help
+	  This must be set larger than the number of configured TLS ciphersuites in mbedtls
+
 config LCZ_LWM2M_DTLS_VERIFY
 	bool "Verify server credentials on DTLS connection"
 	default true
