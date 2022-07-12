@@ -469,8 +469,10 @@ int lwm2m_pull_context_start_transfer(char *uri, struct requesting_object req, k
 	(void)memset(&context.firmware_ctx, 0, sizeof(struct lwm2m_ctx));
 	(void)memset(&context.block_ctx, 0, sizeof(struct coap_block_context));
 	context.firmware_ctx.sock_fd = -1;
+#if defined(CONFIG_LCZ_LWM2M_DTLS_SUPPORT)
 	context.firmware_ctx.load_credentials = req.load_credentials;
 	context.firmware_ctx.tls_tag = CONFIG_LCZ_LWM2M_FIRMWARE_UPDATE_PULL_TLS_TAG;
+#endif
 	context.firmware_ctx_ptr = &(context.firmware_ctx);
 
 	n_retry = 0;
