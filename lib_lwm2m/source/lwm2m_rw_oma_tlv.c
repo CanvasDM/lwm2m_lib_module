@@ -159,6 +159,33 @@ static int oma_tlv_put_u8(struct lwm2m_output_context *out,
 	return 0;
 }
 
+static size_t oma_tlv_size(const struct oma_tlv *tlv)
+{
+	size_t pos;
+	int i;
+	uint8_t len_type;
+
+	/* len_type is the same as number of bytes required for length */
+	len_type = get_len_type(tlv);
+
+	/* first type byte in TLV header */
+	pos = 1;
+
+	/* The ID, 1 or 2 bytes depending on value */
+	if (tlv->id > 255) {
+		pos++;
+	}
+	pos++;
+
+	for (i = 2; i >= 0; i--) {
+		if (len_type > i) {
+			pos++;
+		}
+	}
+
+	return pos;
+}
+
 static size_t oma_tlv_put(const struct oma_tlv *tlv,
 			  struct lwm2m_output_context *out,
 			  uint8_t *value, bool insert)
@@ -552,6 +579,46 @@ static size_t put_opaque(struct lwm2m_output_context *out,
 	return put_string(out, path, buf, buflen);
 }
 
+static size_t opaque_size(uint16_t res_inst_id, size_t value_len)
+{
+	struct oma_tlv tlv;
+	tlv_setup(&tlv, OMA_TLV_TYPE_RESOURCE_INSTANCE, res_inst_id, value_len);
+	return (value_len + oma_tlv_size(&tlv));
+}
+
+static size_t put_opaque_blockwise(struct lwm2m_output_context *out,
+			 struct lwm2m_obj_path *path,
+			 char *buf, size_t buflen,
+			 struct lwm2m_opaque_context *opaque,
+			 bool *last_block)
+{
+	struct tlv_out_formatter_data *fd;
+	struct oma_tlv tlv;
+	size_t size;
+	size_t tlv_header_size = 0;
+
+	fd = engine_get_out_user_data(out);
+	if (!fd) {
+		return 0;
+	}
+
+	/* Put the TLV header only on first write. */
+	if (opaque->remaining == opaque->len) {
+		tlv_setup(&tlv, tlv_calc_type(fd->writer_flags),
+			tlv_calc_id(fd->writer_flags, path),
+			opaque->len);
+		/* packet offset will take care of only putting
+		 * enough bytes into out buf to fill the packet
+		 */
+		size = oma_tlv_put(&tlv, out, NULL, false);
+		tlv_header_size = size - opaque->len;
+		buflen -= tlv_header_size;
+	}
+
+	return lwm2m_engine_put_opaque_more(out, buf, buflen,
+					    opaque, last_block);
+}
+
 static size_t put_objlnk(struct lwm2m_output_context *out,
 			 struct lwm2m_obj_path *path,
 			 struct lwm2m_objlnk *value)
@@ -755,7 +822,9 @@ const struct lwm2m_writer oma_tlv_writer = {
 	.put_float = put_float,
 	.put_bool = put_bool,
 	.put_opaque = put_opaque,
+	.put_opaque_blockwise = put_opaque_blockwise,
 	.put_objlnk = put_objlnk,
+	.opaque_size = opaque_size,
 };
 
 const struct lwm2m_reader oma_tlv_reader = {

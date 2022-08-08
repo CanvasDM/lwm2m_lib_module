@@ -325,6 +325,16 @@ struct lwm2m_engine_obj {
 		++_r_idx; \
 	} while (false)
 
+#define INIT_OBJ_RES_BLOCK(_id, _r_ptr, _r_idx, \
+			_ri_ptr, _ri_idx, _ri_count, _multi_ri, _ri_create, \
+			_data_ptr, _data_len, \
+			_r_cb, _r_block_cb, _pre_w_cb, _val_cb, _post_w_cb, _ex_cb) \
+	do { \
+		_r_ptr[_r_idx].read_block_cb = _r_block_cb; \
+		INIT_OBJ_RES(_id, _r_ptr, _r_idx, _ri_ptr, _ri_idx, _ri_count, _multi_ri, _ri_create, \
+			_data_ptr, _data_len, \
+			_r_cb, _pre_w_cb, _val_cb, _post_w_cb, _ex_cb); \
+	} while (false)
 
 #define LWM2M_ATTR_PMIN	0
 #define LWM2M_ATTR_PMAX	1
@@ -356,6 +366,7 @@ struct lwm2m_engine_res_inst {
 
 struct lwm2m_engine_res {
 	lwm2m_engine_get_data_cb_t		read_cb;
+	lwm2m_engine_get_data_block_cb_t read_block_cb;
 	lwm2m_engine_get_data_cb_t		pre_write_cb;
 #if CONFIG_LCZ_LWM2M_ENGINE_VALIDATION_BUFFER_SIZE > 0
 	lwm2m_engine_set_data_cb_t		validate_cb;
@@ -412,6 +423,12 @@ struct lwm2m_block_context {
 struct lwm2m_output_context {
 	const struct lwm2m_writer *writer;
 	struct coap_packet *out_cpkt;
+
+	/* Current position in buffer */
+	uint16_t offset;
+
+	/* Corresponding block context. NULL if block transfer is not used. */
+	struct lwm2m_block_context *block_ctx;
 
 	/* private output data */
 	void *user_data;
@@ -516,11 +533,17 @@ struct lwm2m_writer {
 	size_t (*put_opaque)(struct lwm2m_output_context *out,
 			     struct lwm2m_obj_path *path,
 			     char *buf, size_t buflen);
+	size_t (*put_opaque_blockwise)(struct lwm2m_output_context *out,
+			     struct lwm2m_obj_path *path,
+			     char *buf, size_t buflen,
+				 struct lwm2m_opaque_context *opaque,
+				 bool *last_block);
 	size_t (*put_objlnk)(struct lwm2m_output_context *out,
 			     struct lwm2m_obj_path *path,
 			     struct lwm2m_objlnk *value);
 	ssize_t (*put_corelink)(struct lwm2m_output_context *out,
 				const struct lwm2m_obj_path *path);
+	size_t (*opaque_size)(uint16_t res_inst_id, size_t value_len);
 };
 
 struct lwm2m_reader {
@@ -711,13 +734,30 @@ static inline size_t engine_put_bool(struct lwm2m_output_context *out,
 
 static inline size_t engine_put_opaque(struct lwm2m_output_context *out,
 				       struct lwm2m_obj_path *path,
-				       char *buf, size_t buflen)
+				       char *buf, size_t buflen,
+					   struct lwm2m_opaque_context *opaque,
+					   bool *last_block)
 {
-	if (out->writer->put_opaque) {
-		return out->writer->put_opaque(out, path, buf, buflen);
+	if(opaque == NULL || last_block == NULL) {
+		if (out->writer->put_opaque) {
+			return out->writer->put_opaque(out, path, buf, buflen);
+		}
+	} else {
+		if (out->writer->put_opaque_blockwise) {
+			return out->writer->put_opaque_blockwise(out, path, buf, buflen, opaque, last_block);
+		}
+	}
+	return 0;
+}
+
+static inline size_t engine_opaque_size(struct lwm2m_output_context *out,
+					   uint16_t res_inst_id, size_t value_len)
+{
+	if (out->writer->opaque_size) {
+		return out->writer->opaque_size(res_inst_id, value_len);
 	}
 
-	return 0;
+	return -ENOTSUP;
 }
 
 static inline size_t engine_put_objlnk(struct lwm2m_output_context *out,

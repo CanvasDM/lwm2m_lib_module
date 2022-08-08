@@ -253,6 +253,38 @@ typedef void *(*lwm2m_engine_get_data_cb_t)(uint16_t obj_inst_id, uint16_t res_i
 					    uint16_t res_inst_id, size_t *data_len);
 
 /**
+ * @brief Asynchronous callback to get a resource block buffer and length.
+ *
+ * To support block-wise read support, the engine can use this callback
+ * to get a block of data at a specified offset and length instead
+ * of using the resource's data buffer.
+ *
+ * The client or LwM2M objects can register a function of this type via:
+ * lwm2m_engine_register_read_block_callback()
+ *
+ * The caller must provide a buffer to place the data into, pointed to
+ * by the 'data' parameter.
+ *
+ * @param[in] obj_inst_id Object instance ID generating the callback.
+ * @param[in] res_id Resource ID generating the callback.
+ * @param[in] res_inst_id Resource instance ID generating the callback
+ *                        (typically 0 for non-multi instance resources).
+ * @param[in] offset Index within the large resource to start the read
+ * @param[in] read_len Number of bytes to read from the large resource
+ * @param[in] data Pointer to buffer data should be written to
+ * @param[out] data_len Actual number of bytes written to the buffer
+ * @param[out] last_block Flag used during block transfer to indicate the
+ *                        last block of data. This function sets this value
+ *                        to true if data written is the last block
+ *
+ * @return Callback returns a pointer to the data buffer or NULL for failure.
+ */
+typedef void *(*lwm2m_engine_get_data_block_cb_t)(uint16_t obj_inst_id,
+					    uint16_t res_id, uint16_t res_inst_id,
+						size_t offset, size_t read_len,
+						uint8_t *data, size_t *data_len, bool *last_block);
+
+/**
  * @brief Asynchronous callback when data has been set to a resource buffer.
  *
  * After changing the data of a resource buffer, the LwM2M engine can
@@ -966,6 +998,19 @@ int lwm2m_engine_get_objlnk(char *pathstr, struct lwm2m_objlnk *buf);
  * @return 0 for success or negative in case of error.
  */
 int lwm2m_engine_register_read_callback(char *pathstr, lwm2m_engine_get_data_cb_t cb);
+
+/**
+ * @brief Set resource (instance) block-wise read callback
+ *
+ * LwM2M clients can use this to set the callback function for large resource reads.
+ *
+ * @param[in] pathstr LwM2M path string "obj/obj-inst/res(/res-inst)"
+ * @param[in] cb Read block-wise resource callback
+ *
+ * @return 0 for success or negative in case of error.
+ */
+int lwm2m_engine_register_read_block_callback(char *pathstr,
+					lwm2m_engine_get_data_block_cb_t cb);
 
 /**
  * @brief Set resource (instance) pre-write callback
