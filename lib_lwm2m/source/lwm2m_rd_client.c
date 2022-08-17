@@ -158,6 +158,7 @@ static struct lwm2m_rd_client_info *lwm2m_get_client_from_rcv_sockaddr(const str
 	return &clients[0];
 }
 
+#if defined(CONFIG_LCZ_LWM2M_RD_CLIENT_SUPPORT_BOOTSTRAP)
 static struct lwm2m_rd_client_info *lwm2m_get_bootstrap_client(void)
 {
 	int i;
@@ -172,6 +173,7 @@ static struct lwm2m_rd_client_info *lwm2m_get_bootstrap_client(void)
 	LOG_ERR("lwm2m_get_bootstrap_client: Couldn't find a bootstrap client entry");
 	return &clients[0];
 }
+#endif
 
 void engine_update_tx_time(struct lwm2m_ctx *ctx)
 {
@@ -392,8 +394,8 @@ static void do_bootstrap_reg_timeout_cb(struct lwm2m_message *msg)
 
 int engine_trigger_bootstrap(void)
 {
-	struct lwm2m_rd_client_info *client = lwm2m_get_bootstrap_client();
 #if defined(CONFIG_LCZ_LWM2M_RD_CLIENT_SUPPORT_BOOTSTRAP)
+	struct lwm2m_rd_client_info *client = lwm2m_get_bootstrap_client();
 	if (!sm_is_registered(client)) {
 		/* Bootstrap is not possible to trig */
 		LOG_WRN("Cannot trigger bootstrap from state %u", client->engine_state);
