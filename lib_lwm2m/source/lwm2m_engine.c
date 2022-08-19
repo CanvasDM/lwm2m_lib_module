@@ -132,9 +132,6 @@ static struct lwm2m_engine_obj_inst *get_engine_obj_inst(int obj_id, int obj_ins
 /* Shared set of in-flight LwM2M messages */
 static struct lwm2m_message messages[CONFIG_LCZ_LWM2M_ENGINE_MAX_MESSAGES];
 
-/* Temporary buffer used for block-wise reads */
-static uint8_t block_buffer[CONFIG_LCZ_LWM2M_COAP_BLOCK_SIZE];
-
 static uint8_t to_hex_digit(uint8_t digit)
 {
 	if (digit >= 10U) {
@@ -2171,15 +2168,28 @@ static int lwm2m_read_handler_opaque_large(struct lwm2m_engine_obj_inst *obj_ins
 	size_t offset = 0;
 	size_t bytes_read;
 	bool last_block = true;
+	void *block_buffer = NULL;
+	size_t block_buffer_len = 0;
 
 	/*
 	 * NOTE: data_ptr and data_len are pointing to the LwM2M object tree for the requested
 	 * resource. data_ptr will be NULL and data_len == 0 for large opaque resources that
-	 * require block-wise transfer. Block-wise read operations use the static block_buffer,
-	 * so set data_len here to the size of the static block_buffer.
+	 * require block-wise transfer. Block-wise read operations use a buffer that is provided
+	 * by the resource. Use the pre_write callback to fetch the buffer.
 	 */
-	data_len = sizeof(block_buffer);
 
+	/* Fetch the opaque block buffer from the resource */
+	if (res->pre_write_cb) {
+		block_buffer = res->pre_write_cb(obj_inst->obj_inst_id, res->res_id,
+					     res_inst->res_inst_id, &block_buffer_len);
+	}
+
+	/* Fail if we couldn't get a buffer */
+	if (block_buffer == NULL || block_buffer_len == 0) {
+		return -ENOMEM;
+	}
+
+	data_len = block_buffer_len;
 	if (msg->out.block_ctx && res != NULL) {
 		/*
 		 * Call the read_block_cb from the lwm2m_context to fill the block_buffer with more
@@ -2192,7 +2202,7 @@ static int lwm2m_read_handler_opaque_large(struct lwm2m_engine_obj_inst *obj_ins
 				   offset, data_len, block_buffer, &bytes_read, &last_block);
 
 		/* Write the additional block-wise data buffer to the packet */
-		len = engine_put_opaque(&msg->out, &msg->path, block_buffer, sizeof(block_buffer),
+		len = engine_put_opaque(&msg->out, &msg->path, block_buffer, block_buffer_len,
 					&msg->out.block_ctx->opaque, &last_block);
 
 		/* Update the last_block flag in the context */
@@ -2470,10 +2480,6 @@ int lwm2m_write_handler(struct lwm2m_engine_obj_inst *obj_inst, struct lwm2m_eng
 				" last:%u",
 				msg->in.block_ctx->ctx.total_size, msg->in.block_ctx->ctx.current,
 				msg->in.block_ctx->last_block);
-
-			/* Block-wise reads use the block_buffer to store their data in transit */
-			data_ptr = block_buffer;
-			data_len = sizeof(block_buffer);
 		}
 	}
 
