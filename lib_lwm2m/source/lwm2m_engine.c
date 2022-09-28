@@ -375,8 +375,8 @@ static int engine_add_observer(struct lwm2m_message *msg, const uint8_t *token, 
 
 			LOG_DBG("OBSERVER DUPLICATE %u/%u/%u(%u) [%s]", msg->path.obj_id,
 				msg->path.obj_inst_id, msg->path.res_id, msg->path.level,
-				log_strdup(lwm2m_transport_print_addr(msg->ctx,
-								      &msg->ctx->remote_addr)));
+				lwm2m_transport_print_addr(msg->ctx,
+								      &msg->ctx->remote_addr));
 
 			return 0;
 		}
@@ -469,8 +469,8 @@ static int engine_add_observer(struct lwm2m_message *msg, const uint8_t *token, 
 
 	LOG_DBG("OBSERVER ADDED %u/%u/%u(%u) token:'%s' addr:%s", msg->path.obj_id,
 		msg->path.obj_inst_id, msg->path.res_id, msg->path.level,
-		log_strdup(sprint_token(token, tkl)),
-		log_strdup(lwm2m_transport_print_addr(msg->ctx, &msg->ctx->remote_addr)));
+		sprint_token(token, tkl),
+		lwm2m_transport_print_addr(msg->ctx, &msg->ctx->remote_addr));
 
 	if (msg->ctx->observe_cb) {
 		msg->ctx->observe_cb(LWM2M_OBSERVE_EVENT_OBSERVER_ADDED, &msg->path, NULL);
@@ -484,7 +484,7 @@ static void remove_observer_from_list(struct lwm2m_ctx *ctx, sys_snode_t *prev_n
 {
 	char buf[LWM2M_MAX_PATH_STR_LEN];
 
-	LOG_DBG("Removing observer %p for path %s", obs, lwm2m_path_log_strdup(buf, &obs->path));
+	LOG_DBG("Removing observer %p for path %s", obs, lwm2m_path_log(buf, &obs->path));
 
 	if (ctx->observe_cb) {
 		ctx->observe_cb(LWM2M_OBSERVE_EVENT_OBSERVER_REMOVED, &obs->path, NULL);
@@ -520,13 +520,13 @@ static int engine_remove_observer_by_token(struct lwm2m_ctx *ctx, const uint8_t 
 
 	remove_observer_from_list(ctx, prev_node, found_obj);
 
-	LOG_DBG("observer '%s' removed", log_strdup(sprint_token(token, tkl)));
+	LOG_DBG("observer '%s' removed", sprint_token(token, tkl));
 
 	return 0;
 }
 
 #if defined(CONFIG_LOG)
-char *lwm2m_path_log_strdup(char *buf, struct lwm2m_obj_path *path)
+char *lwm2m_path_log(char *buf, struct lwm2m_obj_path *path)
 {
 	size_t cur = sprintf(buf, "%u", path->obj_id);
 
@@ -540,7 +540,7 @@ char *lwm2m_path_log_strdup(char *buf, struct lwm2m_obj_path *path)
 		cur += sprintf(buf + cur, "/%u", path->res_inst_id);
 	}
 
-	return log_strdup(buf);
+	return buf;
 }
 #endif /* CONFIG_LOG */
 
@@ -565,7 +565,7 @@ static int engine_remove_observer_by_path(struct lwm2m_ctx *ctx, struct lwm2m_ob
 		return -ENOENT;
 	}
 
-	LOG_INF("Removing observer for path %s", lwm2m_path_log_strdup(buf, path));
+	LOG_INF("Removing observer for path %s", lwm2m_path_log(buf, path));
 
 	remove_observer_from_list(ctx, prev_node, found_obj);
 
@@ -900,7 +900,7 @@ int lwm2m_init_message(struct lwm2m_message *msg)
 	}
 
 	r = coap_pending_init(msg->pending, &msg->cpkt, &msg->ctx->remote_addr,
-			      COAP_DEFAULT_MAX_RETRANSMIT);
+			      CONFIG_COAP_MAX_RETRANSMIT);
 	if (r < 0) {
 		LOG_ERR("Unable to initialize a pending "
 			"retransmission (err:%d).",
@@ -1329,7 +1329,7 @@ int lwm2m_engine_create_obj_inst(char *pathstr)
 		return ret;
 	}
 
-	LOG_DBG("(%s) obj inst created ", log_strdup(pathstr));
+	LOG_DBG("(%s) obj inst created ", pathstr);
 #if defined(CONFIG_LCZ_LWM2M_RD_CLIENT_SUPPORT)
 	engine_trigger_update(true);
 #endif
@@ -1342,7 +1342,7 @@ int lwm2m_engine_delete_obj_inst(char *pathstr)
 	struct lwm2m_obj_path path;
 	int ret = 0;
 
-	LOG_DBG("path: %s", log_strdup(pathstr));
+	LOG_DBG("path: %s", pathstr);
 
 	/* translate path -> path_obj */
 	ret = string_to_path(pathstr, &path, '/');
@@ -1391,7 +1391,7 @@ int lwm2m_engine_set_res_data(char *pathstr, void *data_ptr, uint16_t data_len, 
 	}
 
 	if (!res_inst) {
-		LOG_ERR("(%s) res instance %d not found", log_strdup(pathstr), path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", pathstr, path.res_inst_id);
 		return -ENOENT;
 	}
 
@@ -1416,7 +1416,7 @@ static int lwm2m_engine_set(char *pathstr, void *value, uint16_t len)
 	int ret = 0;
 	bool changed = false;
 
-	LOG_DBG("path:%s, value:%p, len:%d", log_strdup(pathstr), value, len);
+	LOG_DBG("path:%s, value:%p, len:%d", pathstr, value, len);
 
 	/* translate path -> path_obj */
 	ret = string_to_path(pathstr, &path, '/');
@@ -1436,7 +1436,7 @@ static int lwm2m_engine_set(char *pathstr, void *value, uint16_t len)
 	}
 
 	if (!res_inst) {
-		LOG_ERR("(%s) res instance %d not found", log_strdup(pathstr), path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", pathstr, path.res_inst_id);
 		return -ENOENT;
 	}
 
@@ -1647,7 +1647,7 @@ int lwm2m_engine_get_res_data(char *pathstr, void **data_ptr, uint16_t *data_len
 	}
 
 	if (!res_inst) {
-		LOG_ERR("(%s) res instance %d not found", log_strdup(pathstr), path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", pathstr, path.res_inst_id);
 		return -ENOENT;
 	}
 
@@ -1669,7 +1669,7 @@ static int lwm2m_engine_get(char *pathstr, void *buf, uint16_t buflen)
 	void *data_ptr = NULL;
 	size_t data_len = 0;
 
-	LOG_DBG("path:%s, buf:%p, buflen:%d", log_strdup(pathstr), buf, buflen);
+	LOG_DBG("path:%s, buf:%p, buflen:%d", pathstr, buf, buflen);
 
 	/* translate path -> path_obj */
 	ret = string_to_path(pathstr, &path, '/');
@@ -1689,7 +1689,7 @@ static int lwm2m_engine_get(char *pathstr, void *buf, uint16_t buflen)
 	}
 
 	if (!res_inst) {
-		LOG_ERR("(%s) res instance %d not found", log_strdup(pathstr), path.res_inst_id);
+		LOG_ERR("(%s) res instance %d not found", pathstr, path.res_inst_id);
 		return -ENOENT;
 	}
 
@@ -2748,7 +2748,7 @@ static int lwm2m_write_attr_handler(struct lwm2m_engine_obj *obj, struct lwm2m_m
 		}
 
 		if (ret < 0) {
-			LOG_ERR("invalid attr[%s] value", log_strdup(LWM2M_ATTR_STR[type]));
+			LOG_ERR("invalid attr[%s] value", LWM2M_ATTR_STR[type]);
 			/* bad request */
 			return -EEXIST;
 		}
@@ -2794,7 +2794,7 @@ static int lwm2m_write_attr_handler(struct lwm2m_engine_obj *obj, struct lwm2m_m
 		type = attr->type;
 
 		if (!(BIT(type) & nattrs.flags)) {
-			LOG_DBG("Unset attr %s", log_strdup(LWM2M_ATTR_STR[type]));
+			LOG_DBG("Unset attr %s", LWM2M_ATTR_STR[type]);
 			(void)memset(attr, 0, sizeof(*attr));
 
 			if (type <= LWM2M_ATTR_PMAX) {
@@ -2814,7 +2814,7 @@ static int lwm2m_write_attr_handler(struct lwm2m_engine_obj *obj, struct lwm2m_m
 			attr->int_val = *(int32_t *)nattr_ptrs[type];
 			update_observe_node = true;
 
-			LOG_DBG("Update %s to %d", log_strdup(LWM2M_ATTR_STR[type]), attr->int_val);
+			LOG_DBG("Update %s to %d", LWM2M_ATTR_STR[type], attr->int_val);
 		} else {
 			if (attr->float_val == *(double *)nattr_ptrs[type]) {
 				continue;
@@ -2822,7 +2822,7 @@ static int lwm2m_write_attr_handler(struct lwm2m_engine_obj *obj, struct lwm2m_m
 
 			attr->float_val = *(double *)nattr_ptrs[type];
 
-			LOG_DBG("Update %s to %f", log_strdup(LWM2M_ATTR_STR[type]),
+			LOG_DBG("Update %s to %f", LWM2M_ATTR_STR[type],
 				attr->float_val);
 		}
 	}
@@ -2852,11 +2852,11 @@ static int lwm2m_write_attr_handler(struct lwm2m_engine_obj *obj, struct lwm2m_m
 			attr->int_val = *(int32_t *)nattr_ptrs[type];
 			update_observe_node = true;
 
-			LOG_DBG("Add %s to %d", log_strdup(LWM2M_ATTR_STR[type]), attr->int_val);
+			LOG_DBG("Add %s to %d", LWM2M_ATTR_STR[type], attr->int_val);
 		} else {
 			attr->float_val = *(double *)nattr_ptrs[type];
 
-			LOG_DBG("Add %s to %f", log_strdup(LWM2M_ATTR_STR[type]), attr->float_val);
+			LOG_DBG("Add %s to %f", LWM2M_ATTR_STR[type], attr->float_val);
 		}
 
 		nattrs.flags &= ~BIT(type);
@@ -4126,7 +4126,7 @@ static int lwm2m_response_promote_to_con(struct lwm2m_message *msg)
 	}
 
 	ret = coap_pending_init(msg->pending, &msg->cpkt, &msg->ctx->remote_addr,
-				COAP_DEFAULT_MAX_RETRANSMIT);
+				CONFIG_COAP_MAX_RETRANSMIT);
 	if (ret < 0) {
 		LOG_ERR("Unable to initialize a pending "
 			"retransmission (err:%d).",
@@ -4195,7 +4195,7 @@ void lwm2m_coap_receive(struct lwm2m_ctx *client_ctx, uint8_t *buf, uint16_t buf
 	}
 
 	LOG_DBG("checking for reply from [%s]",
-		log_strdup(lwm2m_transport_print_addr(client_ctx, from_addr)));
+		lwm2m_transport_print_addr(client_ctx, from_addr));
 	reply = coap_response_received(&response, from_addr, client_ctx->replies,
 				       CONFIG_LCZ_LWM2M_ENGINE_MAX_REPLIES);
 	if (reply) {
@@ -4385,7 +4385,7 @@ static int notify_message_reply_cb(const struct coap_packet *response, struct co
 
 	LOG_DBG("NOTIFY ACK type:%u code:%d.%d reply_token:'%s'", type,
 		COAP_RESPONSE_CODE_CLASS(code), COAP_RESPONSE_CODE_DETAIL(code),
-		log_strdup(sprint_token(reply->token, reply->tkl)));
+		sprint_token(reply->token, reply->tkl));
 
 	msg = find_msg(NULL, reply);
 
@@ -4437,8 +4437,8 @@ static int generate_notify_message(struct lwm2m_ctx *ctx, struct observe_node *o
 
 	LOG_DBG("[%s] NOTIFY MSG START: %u/%u/%u(%u) token:'%s' [%s] %lld",
 		manual_trigger ? "MANUAL" : "AUTO", obs->path.obj_id, obs->path.obj_inst_id,
-		obs->path.res_id, obs->path.level, log_strdup(sprint_token(obs->token, obs->tkl)),
-		log_strdup(lwm2m_transport_print_addr(msg->ctx, &msg->ctx->remote_addr)),
+		obs->path.res_id, obs->path.level, sprint_token(obs->token, obs->tkl),
+		lwm2m_transport_print_addr(msg->ctx, &msg->ctx->remote_addr),
 		k_uptime_get());
 
 	obj_inst = get_engine_obj_inst(obs->path.obj_id, obs->path.obj_inst_id);

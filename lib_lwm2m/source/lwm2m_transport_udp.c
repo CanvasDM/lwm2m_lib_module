@@ -153,7 +153,7 @@ static int load_tls_credential(struct lwm2m_ctx *client_ctx, uint16_t res_id,
 
 	ret = lwm2m_engine_get_res_data(pathstr, &cred, &cred_len, &cred_flags);
 	if (ret < 0) {
-		LOG_ERR("Unable to get resource data for '%s'", log_strdup(pathstr));
+		LOG_ERR("Unable to get resource data for '%s'", pathstr);
 		return ret;
 	}
 
@@ -286,12 +286,12 @@ int lwm2m_parse_peerinfo(char *url, struct lwm2m_ctx *client_ctx, bool is_firmwa
 	uint16_t off, len;
 	uint8_t tmp;
 
-	LOG_DBG("Parse url: %s", log_strdup(url));
+	LOG_DBG("Parse url: %s", url);
 
 	http_parser_url_init(&parser);
 	ret = http_parser_parse_url(url, strlen(url), 0, &parser);
 	if (ret < 0) {
-		LOG_ERR("Invalid url: %s", log_strdup(url));
+		LOG_ERR("Invalid url: %s", url);
 		return -ENOTSUP;
 	}
 

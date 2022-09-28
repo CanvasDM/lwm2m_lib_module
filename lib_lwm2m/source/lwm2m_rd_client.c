@@ -450,7 +450,7 @@ static int do_registration_reply_cb(const struct coap_packet *response,
 		set_sm_state(client->ctx, ENGINE_REGISTRATION_DONE);
 		LOG_INF("RD Client %d Registration Done (EP='%s')",
 			client->index,
-			log_strdup(client->server_ep));
+			client->server_ep);
 
 		return 0;
 	}
@@ -713,7 +713,7 @@ static int sm_send_bootstrap_registration(struct lwm2m_rd_client_info *client)
 
 	/* log the bootstrap attempt */
 	LOG_DBG("Register ID with bootstrap server as '%s'",
-		log_strdup(query_buffer));
+		query_buffer);
 
 	lwm2m_send_message_async(msg);
 
@@ -745,7 +745,7 @@ static int sm_do_bootstrap_reg(struct lwm2m_rd_client_info *client)
 
 	LOG_INF("Using sec obj inst %d for bootstrap", client->ctx->sec_obj_inst);
 	LOG_INF("Bootstrap started with endpoint '%s' with client lifetime %d",
-		log_strdup(client->ep_name), client->lifetime);
+		client->ep_name, client->lifetime);
 
 	ret = lwm2m_engine_start(client->ctx);
 	if (ret < 0) {
@@ -907,7 +907,7 @@ static int sm_send_registration(struct lwm2m_rd_client_info *client, bool send_o
 
 	/* log the registration attempt */
 	LOG_DBG("registration sent [%s]",
-		log_strdup(lwm2m_transport_print_addr(client->ctx, &client->ctx->remote_addr)));
+		lwm2m_transport_print_addr(client->ctx, &client->ctx->remote_addr));
 
 	return 0;
 
@@ -946,7 +946,7 @@ static int sm_do_registration(struct lwm2m_rd_client_info *client)
 
 	LOG_INF("RD Client %d started with endpoint '%s' with client lifetime %d",
 		client->index,
-		log_strdup(client->ep_name), client->lifetime);
+		client->ep_name, client->lifetime);
 	ret = lwm2m_engine_start(client->ctx);
 	if (ret < 0) {
 		LOG_ERR("Cannot init LWM2M engine (%d)", ret);
@@ -1048,7 +1048,7 @@ static int sm_do_deregister(struct lwm2m_rd_client_info *client)
 		goto cleanup;
 	}
 
-	LOG_INF("Deregister from '%s'", log_strdup(client->server_ep));
+	LOG_INF("Deregister from '%s'", client->server_ep);
 
 	lwm2m_send_message_async(msg);
 
@@ -1191,7 +1191,7 @@ void lwm2m_rd_client_start(uint8_t rd_client_index, int init_sec_obj_inst,
 	set_sm_state(client->ctx, ENGINE_INIT);
 	strncpy(client->ep_name, ep_name, CLIENT_EP_LEN - 1);
 	client->ep_name[CLIENT_EP_LEN - 1] = '\0';
-	LOG_WRN("Starting RD Client %d (%s)", rd_client_index, log_strdup(client->ep_name));
+	LOG_WRN("Starting RD Client %d (%s)", rd_client_index, client->ep_name);
 
 	k_mutex_unlock(&client->mutex);
 }
@@ -1214,7 +1214,7 @@ void lwm2m_rd_client_stop(struct lwm2m_ctx *client_ctx,
 		set_sm_state(client->ctx, ENGINE_IDLE);
 	}
 
-	LOG_INF("Stop LWM2M Client: %s", log_strdup(client->ep_name));
+	LOG_INF("Stop LWM2M Client: %s", client->ep_name);
 
 	k_mutex_unlock(&client->mutex);
 }

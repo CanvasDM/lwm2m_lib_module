@@ -111,14 +111,14 @@ static int transfer_request(struct coap_block_context *ctx, uint8_t *token, uint
 			cursor = COAP2COAP_PROXY_URI_PATH;
 		} else {
 			ret = -EPROTONOSUPPORT;
-			LOG_ERR("Unsupported protocol in URL: %s", log_strdup(context.uri));
+			LOG_ERR("Unsupported protocol in URL: %s", context.uri);
 			goto cleanup;
 		}
 
 		ret = coap_packet_append_option(&msg->cpkt, COAP_OPTION_URI_PATH, cursor,
 						strlen(cursor));
 		if (ret < 0) {
-			LOG_ERR("Error adding URI_PATH '%s'", log_strdup(cursor));
+			LOG_ERR("Error adding URI_PATH '%s'", cursor);
 			goto cleanup;
 		}
 	} else
@@ -127,7 +127,7 @@ static int transfer_request(struct coap_block_context *ctx, uint8_t *token, uint
 		http_parser_url_init(&parser);
 		ret = http_parser_parse_url(context.uri, strlen(context.uri), 0, &parser);
 		if (ret < 0) {
-			LOG_ERR("Invalid firmware url: %s", log_strdup(context.uri));
+			LOG_ERR("Invalid firmware url: %s", context.uri);
 			ret = -ENOTSUP;
 			goto cleanup;
 		}
@@ -182,7 +182,7 @@ static int transfer_request(struct coap_block_context *ctx, uint8_t *token, uint
 		ret = coap_packet_append_option(&msg->cpkt, COAP_OPTION_PROXY_URI, context.uri,
 						strlen(context.uri));
 		if (ret < 0) {
-			LOG_ERR("Error adding PROXY_URI '%s'", log_strdup(context.uri));
+			LOG_ERR("Error adding PROXY_URI '%s'", context.uri);
 			goto cleanup;
 		}
 	}
@@ -412,7 +412,7 @@ static void firmware_transfer(void)
 	}
 #endif
 
-	LOG_INF("Connecting to server %s", log_strdup(context.uri));
+	LOG_INF("Connecting to server %s", context.uri);
 
 	/* reset block transfer context */
 	coap_block_transfer_init(&context.block_ctx, lwm2m_default_block_size(), 0);
@@ -441,7 +441,7 @@ int lwm2m_pull_context_start_transfer(char *uri, struct requesting_object req, k
 #if defined(CONFIG_LCZ_LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT)
 	if (req.proxy_uri != NULL &&
 	    strlen(req.proxy_uri) >= CONFIG_LCZ_LWM2M_SWMGMT_PACKAGE_URI_LEN) {
-		LOG_ERR("Proxy URI too long: %s", log_strdup(req.proxy_uri));
+		LOG_ERR("Proxy URI too long: %s", req.proxy_uri);
 		return -EINVAL;
 	}
 #endif
