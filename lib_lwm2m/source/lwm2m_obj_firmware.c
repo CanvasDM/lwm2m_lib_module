@@ -39,6 +39,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define FIRMWARE_UPDATE_DELIV_METHOD_ID		9
 
 #define FIRMWARE_MAX_ID				10
+#define FIRMWARE_UPDATE_PROTO_SUPPORT_MAX	6
 
 #define DELIVERY_METHOD_PULL_ONLY		0
 #define DELIVERY_METHOD_PUSH_ONLY		1
@@ -51,7 +52,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
  * start with FIRMWARE_MAX_ID
  * subtract EXEC resources (1)
  */
-#define RESOURCE_INSTANCE_COUNT	(FIRMWARE_MAX_ID - 1)
+#define RESOURCE_INSTANCE_COUNT (FIRMWARE_MAX_ID - 1 + FIRMWARE_UPDATE_PROTO_SUPPORT_MAX)
 
 /* resource state variables */
 static uint8_t update_state[MAX_INSTANCE_COUNT];
@@ -395,6 +396,9 @@ static struct lwm2m_engine_obj_inst *firmware_create(uint16_t obj_inst_id)
 			     res_inst[obj_inst_id], j);
 	INIT_OBJ_RES_OPTDATA(FIRMWARE_PACKAGE_VERSION_ID, res[obj_inst_id], i,
 			     res_inst[obj_inst_id], j);
+	INIT_OBJ_RES_MULTI_OPTDATA(FIRMWARE_UPDATE_PROTO_SUPPORT_ID, res[obj_inst_id], i,
+				   res_inst[obj_inst_id], j, FIRMWARE_UPDATE_PROTO_SUPPORT_MAX,
+				   false);
 	INIT_OBJ_RES_DATA(FIRMWARE_UPDATE_DELIV_METHOD_ID, res[obj_inst_id], i,
 			  res_inst[obj_inst_id], j, &(delivery_method[obj_inst_id]),
 			  sizeof(delivery_method[obj_inst_id]));
