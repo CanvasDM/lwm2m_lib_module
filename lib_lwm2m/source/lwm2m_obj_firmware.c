@@ -212,7 +212,7 @@ void lwm2m_firmware_set_update_result_inst(uint16_t obj_inst_id, uint8_t result)
 			result, state);
 	}
 
-	snprintf(path, sizeof(path), "5/%" PRIu16 "/3", obj_inst_id);
+	snprintf(path, sizeof(path), "5/%" PRIu16 "/5", obj_inst_id);
 
 	lwm2m_engine_set_u8(path, result);
 
